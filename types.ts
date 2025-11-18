@@ -22,3 +22,13 @@ export interface ContentItem {
   status: Status;
   link?: string;
 }
+
+export interface Project {
+    id: string;
+    name: string;
+    description?: string;
+    createdAt: {
+        seconds: number;
+        nanoseconds: number;
+    };
+}

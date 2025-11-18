@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, where } from 'firebase/firestore';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { db, auth } from './firebase';
 import { Auth } from './Auth';
 import LandingPage from './LandingPage';
-import { ContentItem, Platform, Status } from './types';
+import { ProjectList } from './ProjectList';
+import { ContentItem, Platform, Status, Project } from './types';
 import { STATUS_COLORS } from './constants';
 
 type View = 'list' | 'calendar' | 'kanban';
@@ -129,91 +130,30 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [showAuthPage, setShowAuthPage] = useState(false);
-  const [view, setView] = useState<View>('list');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [allItems, setAllItems] = useState<ContentItem[]>([]);
-  const [filters, setFilters] = useState({ platform: 'all', status: 'all' });
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [activeProject, setActiveProject] = useState<Project | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (!currentUser) {
         setShowAuthPage(false);
+        setActiveProject(null);
       }
       setLoadingAuth(false);
     });
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (!user) {
-      setAllItems([]);
-      return;
-    }
-    const q = query(collection(db, "users", user.uid, "content"), orderBy("date", "desc"));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const itemsFromDb: ContentItem[] = [];
-      querySnapshot.forEach((doc) => {
-        itemsFromDb.push({
-          id: doc.id,
-          ...doc.data(),
-        } as ContentItem);
-      });
-      setAllItems(itemsFromDb);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  const handleAddItem = useCallback(async (item: Omit<ContentItem, 'id'>) => {
-    if (!user) return;
-    try {
-      await addDoc(collection(db, "users", user.uid, "content"), item);
-    } catch (e) {
-      console.error("Error adding document: ", e);
-      alert("Ошибка при сохранении поста!");
-    }
-  }, [user]);
-
-  const handleUpdateItemStatus = useCallback(async (itemId: string, status: Status) => {
-    if (!user) return;
-    try {
-      const itemRef = doc(db, "users", user.uid, "content", itemId);
-      await updateDoc(itemRef, { status });
-    } catch (e) {
-      console.error("Error updating document: ", e);
-      alert("Ошибка при обновлении статуса!");
-    }
-  }, [user]);
-
-  const handleDeleteItem = useCallback(async (itemId: string) => {
-    if (!user) return;
-    try {
-      await deleteDoc(doc(db, "users", user.uid, "content", itemId));
-    } catch (e) {
-      console.error("Error deleting document: ", e);
-      alert("Ошибка при удалении поста!");
-    }
-  }, [user]);
-
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      // user state will be updated by onAuthStateChanged listener
     } catch (error) {
       console.error("Error signing out:", error);
       alert("Не удалось выйти из аккаунта.");
     }
   };
-
-  const filteredItems = useMemo(() => {
-    return allItems.filter(item => {
-      const platformMatch = filters.platform === 'all' || item.platform === filters.platform;
-      const statusMatch = filters.status === 'all' || item.status === filters.status;
-      return platformMatch && statusMatch;
-    });
-  }, [allItems, filters]);
-
+  
   if (loadingAuth) {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -228,6 +168,86 @@ export default function App() {
       : <LandingPage onGetStarted={() => setShowAuthPage(true)} />;
   }
 
+  if (!activeProject) {
+      return <ProjectList user={user} onSelectProject={setActiveProject} onSignOut={handleSignOut} />;
+  }
+
+  return <ContentDashboard user={user} project={activeProject} onBackToProjects={() => setActiveProject(null)} onSignOut={handleSignOut} />;
+}
+
+// -- CONTENT DASHBOARD COMPONENT --
+interface ContentDashboardProps {
+    user: User;
+    project: Project;
+    onBackToProjects: () => void;
+    onSignOut: () => void;
+}
+
+const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBackToProjects, onSignOut }) => {
+  const [view, setView] = useState<View>('list');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [allItems, setAllItems] = useState<ContentItem[]>([]);
+  const [filters, setFilters] = useState({ platform: 'all', status: 'all' });
+  const [currentDate, setCurrentDate] = useState(new Date());
+  
+  useEffect(() => {
+    if (!user || !project) {
+      setAllItems([]);
+      return;
+    }
+    const q = query(collection(db, "users", user.uid, "projects", project.id, "content"), orderBy("date", "desc"));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const itemsFromDb: ContentItem[] = [];
+      querySnapshot.forEach((doc) => {
+        itemsFromDb.push({
+          id: doc.id,
+          ...doc.data(),
+        } as ContentItem);
+      });
+      setAllItems(itemsFromDb);
+    });
+
+    return () => unsubscribe();
+  }, [user, project]);
+
+  const handleAddItem = useCallback(async (item: Omit<ContentItem, 'id'>) => {
+    if (!user || !project) return;
+    try {
+      await addDoc(collection(db, "users", user.uid, "projects", project.id, "content"), item);
+    } catch (e) {
+      console.error("Error adding document: ", e);
+      alert("Ошибка при сохранении поста!");
+    }
+  }, [user, project]);
+
+  const handleUpdateItemStatus = useCallback(async (itemId: string, status: Status) => {
+    if (!user || !project) return;
+    try {
+      const itemRef = doc(db, "users", user.uid, "projects", project.id, "content", itemId);
+      await updateDoc(itemRef, { status });
+    } catch (e) {
+      console.error("Error updating document: ", e);
+      alert("Ошибка при обновлении статуса!");
+    }
+  }, [user, project]);
+
+  const handleDeleteItem = useCallback(async (itemId: string) => {
+    if (!user || !project) return;
+    try {
+      await deleteDoc(doc(db, "users", user.uid, "projects", project.id, "content", itemId));
+    } catch (e) {
+      console.error("Error deleting document: ", e);
+      alert("Ошибка при удалении поста!");
+    }
+  }, [user, project]);
+
+  const filteredItems = useMemo(() => {
+    return allItems.filter(item => {
+      const platformMatch = filters.platform === 'all' || item.platform === filters.platform;
+      const statusMatch = filters.status === 'all' || item.status === filters.status;
+      return platformMatch && statusMatch;
+    });
+  }, [allItems, filters]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans">
@@ -235,8 +255,15 @@ export default function App() {
         {/* Header */}
         <header className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
             <div className="text-center sm:text-left">
-                <h1 className="text-4xl font-bold text-red-500 tracking-wider">Самурай Контент</h1>
-                <p className="text-gray-400 mt-1">Путь контента - путь воина</p>
+                 <div className="flex items-center gap-3">
+                    <button onClick={onBackToProjects} className="p-2 rounded-full hover:bg-gray-800 transition-colors" aria-label="Back to projects">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <h1 className="text-4xl font-bold text-red-500 tracking-wider" title={project.name}>{project.name}</h1>
+                </div>
+                <p className="text-gray-400 mt-1 pl-10">Путь контента - путь воина</p>
             </div>
             <div className="flex items-center space-x-2">
                  <span className="text-gray-400 text-sm mr-2 hidden md:block" title={user.email || 'user'}>{user.email}</span>
@@ -246,7 +273,7 @@ export default function App() {
                     <button onClick={() => setView('kanban')} className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${view === 'kanban' ? 'bg-red-600' : 'hover:bg-gray-700'}`}>Доска</button>
                 </div>
                 <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition-colors shadow-md">Новый Пост</button>
-                <button onClick={handleSignOut} title="Выйти" className="p-2.5 bg-gray-800 border border-gray-700 hover:bg-gray-700 rounded-lg font-semibold transition-colors">
+                <button onClick={onSignOut} title="Выйти" className="p-2.5 bg-gray-800 border border-gray-700 hover:bg-gray-700 rounded-lg font-semibold transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
