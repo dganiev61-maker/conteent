@@ -3,6 +3,7 @@ import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteD
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { db, auth } from './firebase';
 import { Auth } from './Auth';
+import LandingPage from './LandingPage';
 import { ContentItem, Platform, Status } from './types';
 import { STATUS_COLORS } from './constants';
 
@@ -127,6 +128,7 @@ const ContentModal: React.FC<ContentModalProps> = ({ isOpen, onClose, onSave }) 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [showAuthPage, setShowAuthPage] = useState(false);
   const [view, setView] = useState<View>('list');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [allItems, setAllItems] = useState<ContentItem[]>([]);
@@ -136,6 +138,9 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      if (!currentUser) {
+        setShowAuthPage(false);
+      }
       setLoadingAuth(false);
     });
     return () => unsubscribe();
@@ -218,8 +223,11 @@ export default function App() {
   }
 
   if (!user) {
-    return <Auth auth={auth} />;
+    return showAuthPage
+      ? <Auth auth={auth} onBackToLanding={() => setShowAuthPage(false)} />
+      : <LandingPage onGetStarted={() => setShowAuthPage(true)} />;
   }
+
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans">

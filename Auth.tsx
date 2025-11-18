@@ -3,6 +3,7 @@ import { Auth as FirebaseAuth, createUserWithEmailAndPassword, signInWithEmailAn
 
 interface AuthProps {
   auth: FirebaseAuth;
+  onBackToLanding: () => void;
 }
 
 const getFriendlyErrorMessage = (error: any): string => {
@@ -31,7 +32,7 @@ const getFriendlyErrorMessage = (error: any): string => {
 };
 
 
-export const Auth: React.FC<AuthProps> = ({ auth }) => {
+export const Auth: React.FC<AuthProps> = ({ auth, onBackToLanding }) => {
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -69,7 +70,19 @@ export const Auth: React.FC<AuthProps> = ({ auth }) => {
     };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 p-4">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 p-4 relative">
+            <div className="absolute top-6 left-6">
+                <button 
+                    onClick={onBackToLanding}
+                    className="flex items-center gap-2 text-gray-400 hover:text-red-500 transition-colors"
+                    aria-label="Back to Home"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    На главную
+                </button>
+            </div>
             <div className="text-center mb-8">
                 <h1 className="text-4xl font-bold text-red-500 tracking-wider">Самурай Контент</h1>
                 <p className="text-gray-400 mt-1">Путь контента - путь воина</p>
