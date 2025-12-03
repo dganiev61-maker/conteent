@@ -21,6 +21,7 @@ export interface ContentItem {
   topic: string;
   status: Status;
   link?: string;
+  rubricId?: string; // Optional link to a rubric
 }
 
 export interface Project {
@@ -31,4 +32,16 @@ export interface Project {
         seconds: number;
         nanoseconds: number;
     };
+}
+
+export interface Rubric {
+    id: string;
+    name: string;
+    color: string;
+}
+
+export interface PostingTime {
+    id: string;
+    time: string; // HH:MM format
+    label?: string; // e.g. "Morning", "Prime Time"
 }

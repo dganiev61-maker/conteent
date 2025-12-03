@@ -5,10 +5,12 @@ import { db, auth } from './firebase';
 import { Auth } from './Auth';
 import LandingPage from './LandingPage';
 import { ProjectList } from './ProjectList';
+import { RubricsManager, PostingTimesManager } from './ProjectSettings';
 import { ContentItem, Platform, Status, Project } from './types';
 import { STATUS_COLORS } from './constants';
 
 type View = 'list' | 'calendar' | 'kanban';
+type Tab = 'content' | 'rubrics' | 'times';
 
 // -- HELPER COMPONENTS (Defined outside main App to prevent re-creation on re-renders) --
 
@@ -185,6 +187,7 @@ interface ContentDashboardProps {
 
 const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBackToProjects, onSignOut }) => {
   const [view, setView] = useState<View>('list');
+  const [activeTab, setActiveTab] = useState<Tab>('content');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [allItems, setAllItems] = useState<ContentItem[]>([]);
   const [filters, setFilters] = useState({ platform: 'all', status: 'all' });
@@ -253,7 +256,7 @@ const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBa
     <div className="min-h-screen bg-gray-900 text-gray-100 font-sans">
       <div className="container mx-auto p-4 md:p-8">
         {/* Header */}
-        <header className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
+        <header className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <div className="text-center sm:text-left">
                  <div className="flex items-center gap-3">
                     <button onClick={onBackToProjects} className="p-2 rounded-full hover:bg-gray-800 transition-colors" aria-label="Back to projects">
@@ -267,12 +270,6 @@ const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBa
             </div>
             <div className="flex items-center space-x-2">
                  <span className="text-gray-400 text-sm mr-2 hidden md:block" title={user.email || 'user'}>{user.email}</span>
-                <div className="flex bg-gray-800 border border-gray-700 rounded-lg p-1">
-                    <button onClick={() => setView('list')} className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${view === 'list' ? 'bg-red-600' : 'hover:bg-gray-700'}`}>Список</button>
-                    <button onClick={() => setView('calendar')} className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${view === 'calendar' ? 'bg-red-600' : 'hover:bg-gray-700'}`}>Календарь</button>
-                    <button onClick={() => setView('kanban')} className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${view === 'kanban' ? 'bg-red-600' : 'hover:bg-gray-700'}`}>Доска</button>
-                </div>
-                <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition-colors shadow-md">Новый Пост</button>
                 <button onClick={onSignOut} title="Выйти" className="p-2.5 bg-gray-800 border border-gray-700 hover:bg-gray-700 rounded-lg font-semibold transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -281,34 +278,74 @@ const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBa
             </div>
         </header>
 
-        {/* Filter Bar */}
-        <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-8 flex flex-col sm:flex-row items-center gap-4">
-            <div className="flex-1 w-full sm:w-auto">
-                <label htmlFor="platform-filter" className="text-sm font-medium text-gray-400 mr-2">Платформа:</label>
-                <select id="platform-filter" value={filters.platform} onChange={e => setFilters(f => ({...f, platform: e.target.value}))} className="w-full sm:w-auto bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500">
-                    <option value="all">Все</option>
-                    {Object.values(Platform).map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-            </div>
-            <div className="flex-1 w-full sm:w-auto">
-                <label htmlFor="status-filter" className="text-sm font-medium text-gray-400 mr-2">Статус:</label>
-                <select id="status-filter" value={filters.status} onChange={e => setFilters(f => ({...f, status: e.target.value}))} className="w-full sm:w-auto bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500">
-                    <option value="all">Все</option>
-                    {Object.values(Status).map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-            </div>
-            <button onClick={() => setFilters({platform: 'all', status: 'all'})} className="w-full sm:w-auto px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg font-semibold transition-colors">Сбросить</button>
+        {/* Navigation Tabs */}
+        <div className="flex space-x-4 border-b border-gray-700 mb-6">
+            <button 
+                onClick={() => setActiveTab('content')} 
+                className={`py-2 px-4 font-semibold border-b-2 transition-colors ${activeTab === 'content' ? 'border-red-600 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
+            >
+                Контент
+            </button>
+            <button 
+                onClick={() => setActiveTab('rubrics')} 
+                className={`py-2 px-4 font-semibold border-b-2 transition-colors ${activeTab === 'rubrics' ? 'border-red-600 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
+            >
+                Рубрики
+            </button>
+             <button 
+                onClick={() => setActiveTab('times')} 
+                className={`py-2 px-4 font-semibold border-b-2 transition-colors ${activeTab === 'times' ? 'border-red-600 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
+            >
+                Время публикаций
+            </button>
         </div>
 
         {/* Content Area */}
         <main>
-          {view === 'list' ? (
-            <ContentTable items={filteredItems} onUpdateStatus={handleUpdateItemStatus} onDeleteItem={handleDeleteItem} />
-          ) : view === 'calendar' ? (
-            <CalendarView items={filteredItems} currentDate={currentDate} setCurrentDate={setCurrentDate} />
-          ) : (
-             <KanbanView items={filteredItems} onUpdateStatus={handleUpdateItemStatus} />
-          )}
+            {activeTab === 'content' && (
+                <>
+                    <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                        <div className="flex bg-gray-800 border border-gray-700 rounded-lg p-1">
+                            <button onClick={() => setView('list')} className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${view === 'list' ? 'bg-red-600' : 'hover:bg-gray-700'}`}>Список</button>
+                            <button onClick={() => setView('calendar')} className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${view === 'calendar' ? 'bg-red-600' : 'hover:bg-gray-700'}`}>Календарь</button>
+                            <button onClick={() => setView('kanban')} className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${view === 'kanban' ? 'bg-red-600' : 'hover:bg-gray-700'}`}>Доска</button>
+                        </div>
+                        <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition-colors shadow-md w-full md:w-auto">
+                            Новый Пост
+                        </button>
+                    </div>
+
+                    {/* Filter Bar */}
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-8 flex flex-col sm:flex-row items-center gap-4">
+                        <div className="flex-1 w-full sm:w-auto">
+                            <label htmlFor="platform-filter" className="text-sm font-medium text-gray-400 mr-2">Платформа:</label>
+                            <select id="platform-filter" value={filters.platform} onChange={e => setFilters(f => ({...f, platform: e.target.value}))} className="w-full sm:w-auto bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500">
+                                <option value="all">Все</option>
+                                {Object.values(Platform).map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                        </div>
+                        <div className="flex-1 w-full sm:w-auto">
+                            <label htmlFor="status-filter" className="text-sm font-medium text-gray-400 mr-2">Статус:</label>
+                            <select id="status-filter" value={filters.status} onChange={e => setFilters(f => ({...f, status: e.target.value}))} className="w-full sm:w-auto bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500">
+                                <option value="all">Все</option>
+                                {Object.values(Status).map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </div>
+                        <button onClick={() => setFilters({platform: 'all', status: 'all'})} className="w-full sm:w-auto px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg font-semibold transition-colors">Сбросить</button>
+                    </div>
+
+                    {view === 'list' ? (
+                        <ContentTable items={filteredItems} onUpdateStatus={handleUpdateItemStatus} onDeleteItem={handleDeleteItem} />
+                    ) : view === 'calendar' ? (
+                        <CalendarView items={filteredItems} currentDate={currentDate} setCurrentDate={setCurrentDate} />
+                    ) : (
+                        <KanbanView items={filteredItems} onUpdateStatus={handleUpdateItemStatus} />
+                    )}
+                </>
+            )}
+
+            {activeTab === 'rubrics' && <RubricsManager user={user} project={project} />}
+            {activeTab === 'times' && <PostingTimesManager user={user} project={project} />}
         </main>
       </div>
 
