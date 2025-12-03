@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, where } from 'firebase/firestore';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
@@ -6,13 +7,13 @@ import { Auth } from './Auth';
 import LandingPage from './LandingPage';
 import { ProjectList } from './ProjectList';
 import { RubricsManager, PostingTimesManager } from './ProjectSettings';
-import { ContentItem, Platform, Status, Project } from './types';
+import { ContentItem, Platform, Status, Project, Rubric, PostingTime } from './types';
 import { STATUS_COLORS } from './constants';
 
 type View = 'list' | 'calendar' | 'kanban';
 type Tab = 'content' | 'rubrics' | 'times';
 
-// -- HELPER COMPONENTS (Defined outside main App to prevent re-creation on re-renders) --
+// -- HELPER COMPONENTS --
 
 const PlatformIcon: React.FC<{ platform: Platform; className?: string }> = ({ platform, className = 'w-6 h-6' }) => {
   const icons: { [key in Platform]: React.ReactNode } = {
@@ -59,14 +60,18 @@ interface ContentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (item: Omit<ContentItem, 'id'>) => void;
+  rubrics: Rubric[];
+  postingTimes: PostingTime[];
 }
 
-const ContentModal: React.FC<ContentModalProps> = ({ isOpen, onClose, onSave }) => {
+const ContentModal: React.FC<ContentModalProps> = ({ isOpen, onClose, onSave, rubrics, postingTimes }) => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [platform, setPlatform] = useState<Platform>(Platform.Instagram);
   const [topic, setTopic] = useState('');
   const [status, setStatus] = useState<Status>(Status.Idea);
   const [link, setLink] = useState('');
+  const [rubricId, setRubricId] = useState('');
+  const [postingTimeId, setPostingTimeId] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +79,15 @@ const ContentModal: React.FC<ContentModalProps> = ({ isOpen, onClose, onSave }) 
       alert('Тема Поста не может быть пустой');
       return;
     }
-    onSave({ date, platform, topic, status, link });
+    onSave({ 
+        date, 
+        platform, 
+        topic, 
+        status, 
+        link, 
+        rubricId: rubricId || undefined, 
+        postingTimeId: postingTimeId || undefined 
+    });
     onClose();
     // Reset form
     setDate(new Date().toISOString().split('T')[0]);
@@ -82,6 +95,8 @@ const ContentModal: React.FC<ContentModalProps> = ({ isOpen, onClose, onSave }) 
     setTopic('');
     setStatus(Status.Idea);
     setLink('');
+    setRubricId('');
+    setPostingTimeId('');
   };
 
   if (!isOpen) return null;
@@ -91,9 +106,29 @@ const ContentModal: React.FC<ContentModalProps> = ({ isOpen, onClose, onSave }) 
       <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-6 w-full max-w-lg mx-4 animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-2xl font-bold text-red-500 mb-6">Новый Пост</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Дата</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500" />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-gray-400 mb-1">Время публикации</label>
+                <select value={postingTimeId} onChange={(e) => setPostingTimeId(e.target.value)} className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500">
+                    <option value="">Не выбрано</option>
+                    {postingTimes.map(t => (
+                        <option key={t.id} value={t.id}>{t.time} {t.label ? `(${t.label})` : ''}</option>
+                    ))}
+                </select>
+            </div>
+          </div>
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Дата</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500" />
+            <label className="block text-sm font-medium text-gray-400 mb-1">Рубрика</label>
+            <select value={rubricId} onChange={(e) => setRubricId(e.target.value)} className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500">
+                <option value="">Без рубрики</option>
+                {rubrics.map(r => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-1">Платформа</label>
@@ -190,27 +225,47 @@ const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBa
   const [activeTab, setActiveTab] = useState<Tab>('content');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [allItems, setAllItems] = useState<ContentItem[]>([]);
+  const [rubrics, setRubrics] = useState<Rubric[]>([]);
+  const [postingTimes, setPostingTimes] = useState<PostingTime[]>([]);
   const [filters, setFilters] = useState({ platform: 'all', status: 'all' });
   const [currentDate, setCurrentDate] = useState(new Date());
   
+  // Fetch Content
   useEffect(() => {
-    if (!user || !project) {
-      setAllItems([]);
-      return;
-    }
+    if (!user || !project) return;
     const q = query(collection(db, "users", user.uid, "projects", project.id, "content"), orderBy("date", "desc"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const itemsFromDb: ContentItem[] = [];
       querySnapshot.forEach((doc) => {
-        itemsFromDb.push({
-          id: doc.id,
-          ...doc.data(),
-        } as ContentItem);
+        itemsFromDb.push({ id: doc.id, ...doc.data() } as ContentItem);
       });
       setAllItems(itemsFromDb);
     });
-
     return () => unsubscribe();
+  }, [user, project]);
+
+  // Fetch Rubrics
+  useEffect(() => {
+      if (!user || !project) return;
+      const q = query(collection(db, "users", user.uid, "projects", project.id, "rubrics"), orderBy("name"));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+          const data: Rubric[] = [];
+          snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Rubric));
+          setRubrics(data);
+      });
+      return () => unsubscribe();
+  }, [user, project]);
+
+  // Fetch Posting Times
+  useEffect(() => {
+      if (!user || !project) return;
+      const q = query(collection(db, "users", user.uid, "projects", project.id, "postingTimes"), orderBy("time"));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+          const data: PostingTime[] = [];
+          snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as PostingTime));
+          setPostingTimes(data);
+      });
+      return () => unsubscribe();
   }, [user, project]);
 
   const handleAddItem = useCallback(async (item: Omit<ContentItem, 'id'>) => {
@@ -335,11 +390,11 @@ const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBa
                     </div>
 
                     {view === 'list' ? (
-                        <ContentTable items={filteredItems} onUpdateStatus={handleUpdateItemStatus} onDeleteItem={handleDeleteItem} />
+                        <ContentTable items={filteredItems} rubrics={rubrics} postingTimes={postingTimes} onUpdateStatus={handleUpdateItemStatus} onDeleteItem={handleDeleteItem} />
                     ) : view === 'calendar' ? (
-                        <CalendarView items={filteredItems} currentDate={currentDate} setCurrentDate={setCurrentDate} />
+                        <CalendarView items={filteredItems} rubrics={rubrics} postingTimes={postingTimes} currentDate={currentDate} setCurrentDate={setCurrentDate} />
                     ) : (
-                        <KanbanView items={filteredItems} onUpdateStatus={handleUpdateItemStatus} />
+                        <KanbanView items={filteredItems} rubrics={rubrics} postingTimes={postingTimes} onUpdateStatus={handleUpdateItemStatus} />
                     )}
                 </>
             )}
@@ -349,7 +404,13 @@ const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBa
         </main>
       </div>
 
-      <ContentModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleAddItem} />
+      <ContentModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSave={handleAddItem}
+        rubrics={rubrics}
+        postingTimes={postingTimes}
+       />
     </div>
   );
 }
@@ -421,9 +482,11 @@ const StatusActions: React.FC<{
 
 const ContentTable: React.FC<{ 
     items: ContentItem[];
+    rubrics: Rubric[];
+    postingTimes: PostingTime[];
     onUpdateStatus: (id: string, status: Status) => void;
     onDeleteItem: (id: string) => void;
-}> = ({ items, onUpdateStatus, onDeleteItem }) => {
+}> = ({ items, rubrics, postingTimes, onUpdateStatus, onDeleteItem }) => {
     return (
         <div className="bg-gray-800/50 border border-gray-700 rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
@@ -431,30 +494,46 @@ const ContentTable: React.FC<{
                     <thead className="bg-gray-800 border-b border-gray-700">
                         <tr>
                             <th className="p-4 font-semibold text-gray-300">Дата</th>
+                            <th className="p-4 font-semibold text-gray-300">Время</th>
+                            <th className="p-4 font-semibold text-gray-300">Рубрика</th>
                             <th className="p-4 font-semibold text-gray-300">Платформа</th>
-                            <th className="p-4 font-semibold text-gray-300 w-1/2">Тема Поста</th>
+                            <th className="p-4 font-semibold text-gray-300 w-1/3">Тема Поста</th>
                             <th className="p-4 font-semibold text-gray-300">Статус</th>
                             <th className="p-4 font-semibold text-gray-300">Ссылка</th>
                             <th className="p-4 font-semibold text-gray-300">Действия</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {items.length > 0 ? items.map(item => (
-                            <tr key={item.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
-                                <td className="p-4 whitespace-nowrap">{new Date(item.date + 'T00:00:00').toLocaleDateString('ru-RU')}</td>
-                                <td className="p-4"><PlatformIcon platform={item.platform} /></td>
-                                <td className="p-4 font-medium">{item.topic}</td>
-                                <td className="p-4"><StatusBadge status={item.status} /></td>
-                                <td className="p-4">
-                                    {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:text-red-400 transition-colors">🔗</a>}
-                                </td>
-                                <td className="p-4">
-                                    <StatusActions item={item} onUpdate={onUpdateStatus} onDelete={onDeleteItem} />
-                                </td>
-                            </tr>
-                        )) : (
+                        {items.length > 0 ? items.map(item => {
+                             const rubric = rubrics.find(r => r.id === item.rubricId);
+                             const time = postingTimes.find(t => t.id === item.postingTimeId);
+                             return (
+                                <tr key={item.id} className="border-b border-gray-700/50 hover:bg-gray-700/30 transition-colors">
+                                    <td className="p-4 whitespace-nowrap">{new Date(item.date + 'T00:00:00').toLocaleDateString('ru-RU')}</td>
+                                    <td className="p-4 whitespace-nowrap text-gray-400 font-mono">
+                                        {time ? time.time : '-'}
+                                    </td>
+                                    <td className="p-4">
+                                        {rubric ? (
+                                            <span className={`px-2 py-1 rounded text-xs text-white font-medium ${rubric.color}`}>
+                                                {rubric.name}
+                                            </span>
+                                        ) : '-'}
+                                    </td>
+                                    <td className="p-4"><PlatformIcon platform={item.platform} /></td>
+                                    <td className="p-4 font-medium">{item.topic}</td>
+                                    <td className="p-4"><StatusBadge status={item.status} /></td>
+                                    <td className="p-4">
+                                        {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:text-red-400 transition-colors">🔗</a>}
+                                    </td>
+                                    <td className="p-4">
+                                        <StatusActions item={item} onUpdate={onUpdateStatus} onDelete={onDeleteItem} />
+                                    </td>
+                                </tr>
+                             );
+                        }) : (
                             <tr>
-                                <td colSpan={6} className="text-center p-8 text-gray-500">Нет записей. Добавьте новый пост.</td>
+                                <td colSpan={8} className="text-center p-8 text-gray-500">Нет записей. Добавьте новый пост.</td>
                             </tr>
                         )}
                     </tbody>
@@ -465,7 +544,13 @@ const ContentTable: React.FC<{
 };
 
 
-const CalendarView: React.FC<{ items: ContentItem[], currentDate: Date, setCurrentDate: (date: Date) => void }> = ({ items, currentDate, setCurrentDate }) => {
+const CalendarView: React.FC<{ 
+    items: ContentItem[], 
+    rubrics: Rubric[],
+    postingTimes: PostingTime[],
+    currentDate: Date, 
+    setCurrentDate: (date: Date) => void 
+}> = ({ items, rubrics, postingTimes, currentDate, setCurrentDate }) => {
     const month = currentDate.getMonth();
     const year = currentDate.getFullYear();
 
@@ -524,12 +609,18 @@ const CalendarView: React.FC<{ items: ContentItem[], currentDate: Date, setCurre
                         <div key={day} className={`border rounded-md min-h-[120px] p-2 flex flex-col ${isToday ? 'border-red-500 bg-red-900/20' : 'border-gray-700/50 bg-gray-800/20'}`}>
                             <span className={`font-bold ${isToday ? 'text-red-400' : 'text-gray-300'}`}>{day}</span>
                             <div className="mt-1 space-y-1 overflow-y-auto">
-                                {dayItems.map(item => (
-                                    <div key={item.id} className={`p-1 rounded-md text-xs flex items-center gap-1 ${STATUS_COLORS[item.status]} border-l-4`}>
-                                        <PlatformIcon platform={item.platform} className="w-3 h-3 flex-shrink-0" />
-                                        <span className="truncate">{item.topic}</span>
-                                    </div>
-                                ))}
+                                {dayItems.map(item => {
+                                    const time = postingTimes.find(t => t.id === item.postingTimeId);
+                                    return (
+                                        <div key={item.id} className={`p-1 rounded-md text-xs flex flex-col gap-1 ${STATUS_COLORS[item.status]} border-l-4`}>
+                                            <div className="flex items-center justify-between">
+                                                 <PlatformIcon platform={item.platform} className="w-3 h-3 flex-shrink-0" />
+                                                 {time && <span className="text-[10px] font-mono opacity-80">{time.time}</span>}
+                                            </div>
+                                            <span className="truncate">{item.topic}</span>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     );
@@ -541,35 +632,54 @@ const CalendarView: React.FC<{ items: ContentItem[], currentDate: Date, setCurre
 
 const KanbanCard: React.FC<{ 
     item: ContentItem; 
+    rubrics: Rubric[];
+    postingTimes: PostingTime[];
     onDragStart: (e: React.DragEvent, itemId: string) => void;
-}> = ({ item, onDragStart }) => (
-    <div
-        draggable
-        onDragStart={(e) => onDragStart(e, item.id)}
-        className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-gray-700/50 transition-colors shadow-md"
-        aria-roledescription={`Post titled ${item.topic}`}
-    >
-        <p className="font-semibold mb-2 text-gray-200">{item.topic}</p>
-        <div className="flex justify-between items-center text-sm text-gray-400">
-            <div className="flex items-center gap-2">
-                <PlatformIcon platform={item.platform} className="w-4 h-4" />
-                <span>{new Date(item.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' })}</span>
+}> = ({ item, rubrics, postingTimes, onDragStart }) => {
+    const rubric = rubrics.find(r => r.id === item.rubricId);
+    const time = postingTimes.find(t => t.id === item.postingTimeId);
+
+    return (
+        <div
+            draggable
+            onDragStart={(e) => onDragStart(e, item.id)}
+            className="bg-gray-800 border border-gray-700 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-gray-700/50 transition-colors shadow-md group relative"
+            aria-roledescription={`Post titled ${item.topic}`}
+        >
+            {rubric && (
+                <div className={`absolute top-0 right-0 w-3 h-3 rounded-full m-2 ${rubric.color}`} title={rubric.name}></div>
+            )}
+            <div className="mb-2">
+                 <p className="font-semibold text-gray-200">{item.topic}</p>
+                 {rubric && <span className="text-[10px] text-gray-400">{rubric.name}</span>}
             </div>
-            {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:text-red-400 transition-colors">🔗</a>}
+            
+            <div className="flex justify-between items-center text-sm text-gray-400 mt-3 border-t border-gray-700 pt-2">
+                <div className="flex items-center gap-2">
+                    <PlatformIcon platform={item.platform} className="w-4 h-4" />
+                    <div className="flex flex-col text-xs">
+                        <span>{new Date(item.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: '2-digit', month: 'short' })}</span>
+                        {time && <span className="text-gray-500">{time.time}</span>}
+                    </div>
+                </div>
+                {item.link && <a href={item.link} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:text-red-400 transition-colors">🔗</a>}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 const KanbanView: React.FC<{
     items: ContentItem[];
+    rubrics: Rubric[];
+    postingTimes: PostingTime[];
     onUpdateStatus: (id: string, status: Status) => void;
-}> = ({ items, onUpdateStatus }) => {
+}> = ({ items, rubrics, postingTimes, onUpdateStatus }) => {
     const handleDragStart = (e: React.DragEvent, itemId: string) => {
         e.dataTransfer.setData("itemId", itemId);
     };
 
     const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault(); // Necessary to allow dropping
+        e.preventDefault(); 
     };
 
     const handleDrop = (e: React.DragEvent, newStatus: Status) => {
@@ -599,7 +709,7 @@ const KanbanView: React.FC<{
                             .filter(item => item.status === status)
                             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
                             .map(item => (
-                                <KanbanCard key={item.id} item={item} onDragStart={handleDragStart} />
+                                <KanbanCard key={item.id} item={item} rubrics={rubrics} postingTimes={postingTimes} onDragStart={handleDragStart} />
                             ))
                         }
                     </div>

@@ -22,6 +22,7 @@ export interface ContentItem {
   status: Status;
   link?: string;
   rubricId?: string; // Optional link to a rubric
+  postingTimeId?: string; // Optional link to a posting time
 }
 
 export interface Project {
