@@ -230,6 +230,16 @@ const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBa
   const [filters, setFilters] = useState({ platform: 'all', status: 'all' });
   const [currentDate, setCurrentDate] = useState(new Date());
   
+  // Track notifications to avoid double sending in session
+  const notifiedIds = useRef<Set<string>>(new Set());
+
+  // Request Notification Permissions
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      Notification.requestPermission();
+    }
+  }, []);
+  
   // Fetch Content
   useEffect(() => {
     if (!user || !project) return;
@@ -267,6 +277,55 @@ const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBa
       });
       return () => unsubscribe();
   }, [user, project]);
+
+  // Check for notifications
+  useEffect(() => {
+    if (!allItems.length || !postingTimes.length) return;
+
+    const checkNotifications = () => {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            const now = new Date();
+            
+            allItems.forEach(item => {
+                // Skip if published or no time selected
+                if (item.status === Status.Published || !item.postingTimeId) return;
+
+                const timeSlot = postingTimes.find(t => t.id === item.postingTimeId);
+                if (!timeSlot) return;
+
+                // Parse date and time
+                // item.date is YYYY-MM-DD
+                const [year, month, day] = item.date.split('-').map(Number);
+                const [hours, minutes] = timeSlot.time.split(':').map(Number);
+                
+                // Construct date in local time
+                const postDate = new Date(year, month - 1, day, hours, minutes);
+                
+                // Calculate difference in minutes
+                const diffMs = postDate.getTime() - now.getTime();
+                const diffMinutes = diffMs / (1000 * 60);
+
+                // Create a unique key for this notification instance
+                const notificationKey = `${item.id}-${item.date}-${timeSlot.time}`;
+
+                // Check if it's within the window (29-30 minutes before) and hasn't been notified yet this session
+                if (diffMinutes >= 29 && diffMinutes <= 30.5 && !notifiedIds.current.has(notificationKey)) {
+                     new Notification(`Напоминание: ${item.topic}`, {
+                        body: `Пост запланирован через 30 минут (${timeSlot.time}) в ${item.platform}`,
+                        icon: '/vite.svg' // Standard vite icon or app icon
+                     });
+                     notifiedIds.current.add(notificationKey);
+                }
+            });
+        }
+    };
+
+    const intervalId = setInterval(checkNotifications, 60000); // Check every minute
+    checkNotifications(); // Check immediately on load
+
+    return () => clearInterval(intervalId);
+
+  }, [allItems, postingTimes]);
 
   const handleAddItem = useCallback(async (item: Omit<ContentItem, 'id'>) => {
     if (!user || !project) return;
