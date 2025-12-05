@@ -46,3 +46,16 @@ export interface PostingTime {
     time: string; // HH:MM format
     label?: string; // e.g. "Morning", "Prime Time"
 }
+
+export interface ProjectSettings {
+    notificationMinutes: number;
+    notificationTitleTemplate: string;
+    notificationBodyTemplate: string;
+}
+
+export interface StatsRecord {
+    id: string;
+    date: string; // YYYY-MM-DD
+    subscribers: number;
+    reach: number;
+}

@@ -6,12 +6,13 @@ import { db, auth } from './firebase';
 import { Auth } from './Auth';
 import LandingPage from './LandingPage';
 import { ProjectList } from './ProjectList';
-import { RubricsManager, PostingTimesManager } from './ProjectSettings';
-import { ContentItem, Platform, Status, Project, Rubric, PostingTime } from './types';
+import { RubricsManager, PostingTimesManager, NotificationSettingsManager } from './ProjectSettings';
+import { Statistics } from './Statistics';
+import { ContentItem, Platform, Status, Project, Rubric, PostingTime, ProjectSettings } from './types';
 import { STATUS_COLORS } from './constants';
 
 type View = 'list' | 'calendar' | 'kanban';
-type Tab = 'content' | 'rubrics' | 'times';
+type Tab = 'content' | 'rubrics' | 'times' | 'settings' | 'stats';
 
 // -- HELPER COMPONENTS --
 
@@ -227,6 +228,11 @@ const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBa
   const [allItems, setAllItems] = useState<ContentItem[]>([]);
   const [rubrics, setRubrics] = useState<Rubric[]>([]);
   const [postingTimes, setPostingTimes] = useState<PostingTime[]>([]);
+  const [projectSettings, setProjectSettings] = useState<ProjectSettings>({
+      notificationMinutes: 30,
+      notificationTitleTemplate: 'Напоминание: {topic}',
+      notificationBodyTemplate: 'Пост запланирован через {time} в {platform}'
+  });
   const [filters, setFilters] = useState({ platform: 'all', status: 'all' });
   const [currentDate, setCurrentDate] = useState(new Date());
   
@@ -278,6 +284,25 @@ const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBa
       return () => unsubscribe();
   }, [user, project]);
 
+  // Fetch Notification Settings
+  useEffect(() => {
+      if (!user || !project) return;
+      const docRef = doc(db, "users", user.uid, "projects", project.id, "settings", "notifications");
+      const unsubscribe = onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+            setProjectSettings(docSnap.data() as ProjectSettings);
+        } else {
+            // Defaults
+             setProjectSettings({
+                notificationMinutes: 30,
+                notificationTitleTemplate: 'Напоминание: {topic}',
+                notificationBodyTemplate: 'Пост запланирован через {time} в {platform}'
+            });
+        }
+      });
+      return () => unsubscribe();
+  }, [user, project]);
+
   // Check for notifications
   useEffect(() => {
     if (!allItems.length || !postingTimes.length) return;
@@ -305,14 +330,24 @@ const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBa
                 const diffMs = postDate.getTime() - now.getTime();
                 const diffMinutes = diffMs / (1000 * 60);
 
-                // Create a unique key for this notification instance
-                const notificationKey = `${item.id}-${item.date}-${timeSlot.time}`;
+                // Create a unique key for this notification instance + settings check
+                const notificationKey = `${item.id}-${item.date}-${timeSlot.time}-${projectSettings.notificationMinutes}`;
+                const targetMinutes = projectSettings.notificationMinutes;
 
-                // Check if it's within the window (29-30 minutes before) and hasn't been notified yet this session
-                if (diffMinutes >= 29 && diffMinutes <= 30.5 && !notifiedIds.current.has(notificationKey)) {
-                     new Notification(`Напоминание: ${item.topic}`, {
-                        body: `Пост запланирован через 30 минут (${timeSlot.time}) в ${item.platform}`,
-                        icon: '/vite.svg' // Standard vite icon or app icon
+                // Check window: e.g. if target is 30, trigger between 29 and 30.5 to catch it in the 1-min interval
+                if (diffMinutes >= (targetMinutes - 1) && diffMinutes <= (targetMinutes + 0.5) && !notifiedIds.current.has(notificationKey)) {
+                     
+                     // Format message using template
+                     const formatString = (str: string) => {
+                         return str
+                            .replace('{topic}', item.topic)
+                            .replace('{platform}', item.platform)
+                            .replace('{time}', timeSlot.time);
+                     };
+
+                     new Notification(formatString(projectSettings.notificationTitleTemplate || 'Напоминание'), {
+                        body: formatString(projectSettings.notificationBodyTemplate || 'Пора публиковать пост'),
+                        icon: '/vite.svg' 
                      });
                      notifiedIds.current.add(notificationKey);
                 }
@@ -325,7 +360,7 @@ const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBa
 
     return () => clearInterval(intervalId);
 
-  }, [allItems, postingTimes]);
+  }, [allItems, postingTimes, projectSettings]);
 
   const handleAddItem = useCallback(async (item: Omit<ContentItem, 'id'>) => {
     if (!user || !project) return;
@@ -393,24 +428,36 @@ const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBa
         </header>
 
         {/* Navigation Tabs */}
-        <div className="flex space-x-4 border-b border-gray-700 mb-6">
+        <div className="flex space-x-4 border-b border-gray-700 mb-6 overflow-x-auto">
             <button 
                 onClick={() => setActiveTab('content')} 
-                className={`py-2 px-4 font-semibold border-b-2 transition-colors ${activeTab === 'content' ? 'border-red-600 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
+                className={`py-2 px-4 font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'content' ? 'border-red-600 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
             >
                 Контент
             </button>
             <button 
                 onClick={() => setActiveTab('rubrics')} 
-                className={`py-2 px-4 font-semibold border-b-2 transition-colors ${activeTab === 'rubrics' ? 'border-red-600 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
+                className={`py-2 px-4 font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'rubrics' ? 'border-red-600 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
             >
                 Рубрики
             </button>
              <button 
                 onClick={() => setActiveTab('times')} 
-                className={`py-2 px-4 font-semibold border-b-2 transition-colors ${activeTab === 'times' ? 'border-red-600 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
+                className={`py-2 px-4 font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'times' ? 'border-red-600 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
             >
                 Время публикаций
+            </button>
+             <button 
+                onClick={() => setActiveTab('stats')} 
+                className={`py-2 px-4 font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'stats' ? 'border-red-600 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
+            >
+                Статистика
+            </button>
+            <button 
+                onClick={() => setActiveTab('settings')} 
+                className={`py-2 px-4 font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'settings' ? 'border-red-600 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
+            >
+                Настройки
             </button>
         </div>
 
@@ -460,6 +507,8 @@ const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBa
 
             {activeTab === 'rubrics' && <RubricsManager user={user} project={project} />}
             {activeTab === 'times' && <PostingTimesManager user={user} project={project} />}
+            {activeTab === 'stats' && <Statistics user={user} project={project} contentItems={allItems} />}
+            {activeTab === 'settings' && <NotificationSettingsManager user={user} project={project} />}
         </main>
       </div>
 

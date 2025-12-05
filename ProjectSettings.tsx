@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, setDoc, getDoc } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { db } from './firebase';
-import { Project, Rubric, PostingTime } from './types';
+import { Project, Rubric, PostingTime, ProjectSettings } from './types';
 
 // Predefined colors for the Samurai theme context
 const RUBRIC_COLORS = [
@@ -220,6 +221,134 @@ export const PostingTimesManager: React.FC<SettingsProps> = ({ user, project }) 
                     </div>
                 )}
             </div>
+        </div>
+    );
+};
+
+export const NotificationSettingsManager: React.FC<SettingsProps> = ({ user, project }) => {
+    const [minutes, setMinutes] = useState(30);
+    const [titleTemplate, setTitleTemplate] = useState('Напоминание: {topic}');
+    const [bodyTemplate, setBodyTemplate] = useState('Публикация через {time} в {platform}');
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            const docRef = doc(db, "users", user.uid, "projects", project.id, "settings", "notifications");
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data() as ProjectSettings;
+                setMinutes(data.notificationMinutes);
+                setTitleTemplate(data.notificationTitleTemplate || 'Напоминание: {topic}');
+                setBodyTemplate(data.notificationBodyTemplate || 'Публикация через {time} в {platform}');
+            }
+        };
+        fetchSettings();
+    }, [user, project]);
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSaving(true);
+        try {
+            await setDoc(doc(db, "users", user.uid, "projects", project.id, "settings", "notifications"), {
+                notificationMinutes: Number(minutes),
+                notificationTitleTemplate: titleTemplate,
+                notificationBodyTemplate: bodyTemplate
+            }, { merge: true });
+        } catch (error) {
+            console.error("Error saving settings:", error);
+            alert("Не удалось сохранить настройки");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6 max-w-4xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-100 mb-6 flex items-center gap-2">
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                Настройки Уведомлений
+            </h2>
+
+            <form onSubmit={handleSave} className="space-y-6">
+                <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-1">
+                        За сколько минут отправлять уведомление?
+                    </label>
+                    <div className="flex items-center gap-3">
+                        <input 
+                            type="number" 
+                            min="1"
+                            max="1440"
+                            value={minutes} 
+                            onChange={(e) => setMinutes(Number(e.target.value))} 
+                            className="w-32 bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500"
+                        />
+                        <span className="text-gray-400">минут до публикации</span>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">
+                            Шаблон заголовка
+                        </label>
+                        <input 
+                            type="text" 
+                            value={titleTemplate} 
+                            onChange={(e) => setTitleTemplate(e.target.value)} 
+                            className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Доступно: &#123;topic&#125;, &#123;platform&#125;, &#123;time&#125;</p>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">
+                            Шаблон текста
+                        </label>
+                        <input 
+                            type="text" 
+                            value={bodyTemplate} 
+                            onChange={(e) => setBodyTemplate(e.target.value)} 
+                            className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Доступно: &#123;topic&#125;, &#123;platform&#125;, &#123;time&#125;</p>
+                    </div>
+                </div>
+
+                <div className="bg-gray-900 border border-gray-800 rounded p-4">
+                    <p className="text-sm text-gray-400 mb-2">Предпросмотр:</p>
+                    <div className="bg-gray-800 p-3 rounded border border-gray-700 flex gap-3">
+                         <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center shrink-0">
+                            <img src="/vite.svg" className="w-6 h-6" alt="icon" />
+                         </div>
+                         <div>
+                             <p className="font-bold text-gray-200">
+                                 {titleTemplate
+                                    .replace('{topic}', 'Мой крутой пост')
+                                    .replace('{platform}', 'Instagram')
+                                    .replace('{time}', '15:30')}
+                             </p>
+                             <p className="text-sm text-gray-400">
+                                 {bodyTemplate
+                                    .replace('{topic}', 'Мой крутой пост')
+                                    .replace('{platform}', 'Instagram')
+                                    .replace('{time}', '15:30')}
+                             </p>
+                         </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-end">
+                    <button 
+                        type="submit" 
+                        disabled={saving}
+                        className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-md font-semibold transition-colors disabled:opacity-50"
+                    >
+                        {saving ? 'Сохранение...' : 'Сохранить настройки'}
+                    </button>
+                </div>
+            </form>
         </div>
     );
 };
