@@ -144,7 +144,10 @@ export const ProjectList: React.FC<ProjectListProps> = ({ user, onSelectProject,
                                         <h3 className="text-xl font-bold text-gray-100 truncate" title={project.name}>{project.name}</h3>
                                         <p className="text-gray-400 mt-2 text-sm break-words">{project.description || 'Нет описания'}</p>
                                     </div>
-                                    <p className="text-xs text-gray-500 mt-4">Создан: {new Date(project.createdAt?.seconds * 1000).toLocaleDateString('ru-RU')}</p>
+                                    <p className="text-xs text-gray-500 mt-4">
+                                        {/* Added optional chaining and default string to prevent crash if createdAt is pending/null */}
+                                        Создан: {project.createdAt?.seconds ? new Date(project.createdAt.seconds * 1000).toLocaleDateString('ru-RU') : '...'}
+                                    </p>
                                 </div>
                             ))
                         )}

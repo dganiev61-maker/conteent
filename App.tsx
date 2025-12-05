@@ -1,6 +1,5 @@
-
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, where } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, deleteDoc, where, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { db, auth } from './firebase';
 import { Auth } from './Auth';
@@ -52,479 +51,6 @@ const StatusBadge: React.FC<{ status: Status }> = ({ status }) => (
     {status}
   </span>
 );
-
-interface ContentModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (item: Omit<ContentItem, 'id'>) => void;
-  rubrics: Rubric[];
-  postingTimes: PostingTime[];
-}
-
-const ContentModal: React.FC<ContentModalProps> = ({ isOpen, onClose, onSave, rubrics, postingTimes }) => {
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [platform, setPlatform] = useState<Platform>(Platform.Instagram);
-  const [topic, setTopic] = useState('');
-  const [status, setStatus] = useState<Status>(Status.Idea);
-  const [link, setLink] = useState('');
-  const [rubricId, setRubricId] = useState('');
-  const [postingTimeId, setPostingTimeId] = useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!topic.trim()) {
-      alert('Тема Поста не может быть пустой');
-      return;
-    }
-    onSave({ 
-        date, 
-        platform, 
-        topic, 
-        status, 
-        link, 
-        rubricId: rubricId || undefined, 
-        postingTimeId: postingTimeId || undefined 
-    });
-    onClose();
-    // Reset form
-    setDate(new Date().toISOString().split('T')[0]);
-    setPlatform(Platform.Instagram);
-    setTopic('');
-    setStatus(Status.Idea);
-    setLink('');
-    setRubricId('');
-    setPostingTimeId('');
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 transition-opacity" onClick={onClose}>
-      <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl p-6 w-full max-w-lg mx-4 animate-fade-in-up" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-2xl font-bold text-red-500 mb-6">Новый Пост</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-400 mb-1">Дата</label>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500" />
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Время публикации</label>
-                <select value={postingTimeId} onChange={(e) => setPostingTimeId(e.target.value)} className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500">
-                    <option value="">Не выбрано</option>
-                    {postingTimes.map(t => (
-                        <option key={t.id} value={t.id}>{t.time} {t.label ? `(${t.label})` : ''}</option>
-                    ))}
-                </select>
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Рубрика</label>
-            <select value={rubricId} onChange={(e) => setRubricId(e.target.value)} className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500">
-                <option value="">Без рубрики</option>
-                {rubrics.map(r => (
-                    <option key={r.id} value={r.id}>{r.name}</option>
-                ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Платформа</label>
-            <select value={platform} onChange={(e) => setPlatform(e.target.value as Platform)} className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500">
-              {Object.values(Platform).map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Тема Поста</label>
-            <input type="text" value={topic} onChange={(e) => setTopic(e.target.value)} required placeholder="О чем будет пост?" className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Статус</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value as Status)} className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500">
-              {Object.values(Status).map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Ссылка</label>
-            <input type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://..." className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500" />
-          </div>
-          <div className="flex justify-end space-x-4 pt-4">
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-md bg-gray-600 hover:bg-gray-700 transition-colors">Отмена</button>
-            <button type="submit" className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 font-semibold transition-colors">Сохранить</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-
-// -- MAIN APPLICATION COMPONENT --
-
-export default function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loadingAuth, setLoadingAuth] = useState(true);
-  const [showAuthPage, setShowAuthPage] = useState(false);
-  const [activeProject, setActiveProject] = useState<Project | null>(null);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      if (!currentUser) {
-        setShowAuthPage(false);
-        setActiveProject(null);
-      }
-      setLoadingAuth(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-      // user state will be updated by onAuthStateChanged listener
-    } catch (error) {
-      console.error("Error signing out:", error);
-      alert("Не удалось выйти из аккаунта.");
-    }
-  };
-  
-  if (loadingAuth) {
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-900">
-            <div className="text-red-500 text-xl">Загрузка...</div>
-        </div>
-    );
-  }
-
-  if (!user) {
-    return showAuthPage
-      ? <Auth auth={auth} onBackToLanding={() => setShowAuthPage(false)} />
-      : <LandingPage onGetStarted={() => setShowAuthPage(true)} />;
-  }
-
-  if (!activeProject) {
-      return <ProjectList user={user} onSelectProject={setActiveProject} onSignOut={handleSignOut} />;
-  }
-
-  return <ContentDashboard user={user} project={activeProject} onBackToProjects={() => setActiveProject(null)} onSignOut={handleSignOut} />;
-}
-
-// -- CONTENT DASHBOARD COMPONENT --
-interface ContentDashboardProps {
-    user: User;
-    project: Project;
-    onBackToProjects: () => void;
-    onSignOut: () => void;
-}
-
-const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBackToProjects, onSignOut }) => {
-  const [view, setView] = useState<View>('list');
-  const [activeTab, setActiveTab] = useState<Tab>('content');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [allItems, setAllItems] = useState<ContentItem[]>([]);
-  const [rubrics, setRubrics] = useState<Rubric[]>([]);
-  const [postingTimes, setPostingTimes] = useState<PostingTime[]>([]);
-  const [projectSettings, setProjectSettings] = useState<ProjectSettings>({
-      notificationMinutes: 30,
-      notificationTitleTemplate: 'Напоминание: {topic}',
-      notificationBodyTemplate: 'Пост запланирован через {time} в {platform}'
-  });
-  const [filters, setFilters] = useState({ platform: 'all', status: 'all' });
-  const [currentDate, setCurrentDate] = useState(new Date());
-  
-  // Track notifications to avoid double sending in session
-  const notifiedIds = useRef<Set<string>>(new Set());
-
-  // Request Notification Permissions
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-      Notification.requestPermission();
-    }
-  }, []);
-  
-  // Fetch Content
-  useEffect(() => {
-    if (!user || !project) return;
-    const q = query(collection(db, "users", user.uid, "projects", project.id, "content"), orderBy("date", "desc"));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const itemsFromDb: ContentItem[] = [];
-      querySnapshot.forEach((doc) => {
-        itemsFromDb.push({ id: doc.id, ...doc.data() } as ContentItem);
-      });
-      setAllItems(itemsFromDb);
-    });
-    return () => unsubscribe();
-  }, [user, project]);
-
-  // Fetch Rubrics
-  useEffect(() => {
-      if (!user || !project) return;
-      const q = query(collection(db, "users", user.uid, "projects", project.id, "rubrics"), orderBy("name"));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-          const data: Rubric[] = [];
-          snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as Rubric));
-          setRubrics(data);
-      });
-      return () => unsubscribe();
-  }, [user, project]);
-
-  // Fetch Posting Times
-  useEffect(() => {
-      if (!user || !project) return;
-      const q = query(collection(db, "users", user.uid, "projects", project.id, "postingTimes"), orderBy("time"));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-          const data: PostingTime[] = [];
-          snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as PostingTime));
-          setPostingTimes(data);
-      });
-      return () => unsubscribe();
-  }, [user, project]);
-
-  // Fetch Notification Settings
-  useEffect(() => {
-      if (!user || !project) return;
-      const docRef = doc(db, "users", user.uid, "projects", project.id, "settings", "notifications");
-      const unsubscribe = onSnapshot(docRef, (docSnap) => {
-        if (docSnap.exists()) {
-            setProjectSettings(docSnap.data() as ProjectSettings);
-        } else {
-            // Defaults
-             setProjectSettings({
-                notificationMinutes: 30,
-                notificationTitleTemplate: 'Напоминание: {topic}',
-                notificationBodyTemplate: 'Пост запланирован через {time} в {platform}'
-            });
-        }
-      });
-      return () => unsubscribe();
-  }, [user, project]);
-
-  // Check for notifications
-  useEffect(() => {
-    if (!allItems.length || !postingTimes.length) return;
-
-    const checkNotifications = () => {
-        if ('Notification' in window && Notification.permission === 'granted') {
-            const now = new Date();
-            
-            allItems.forEach(item => {
-                // Skip if published or no time selected
-                if (item.status === Status.Published || !item.postingTimeId) return;
-
-                const timeSlot = postingTimes.find(t => t.id === item.postingTimeId);
-                if (!timeSlot) return;
-
-                // Parse date and time
-                // item.date is YYYY-MM-DD
-                const [year, month, day] = item.date.split('-').map(Number);
-                const [hours, minutes] = timeSlot.time.split(':').map(Number);
-                
-                // Construct date in local time
-                const postDate = new Date(year, month - 1, day, hours, minutes);
-                
-                // Calculate difference in minutes
-                const diffMs = postDate.getTime() - now.getTime();
-                const diffMinutes = diffMs / (1000 * 60);
-
-                // Create a unique key for this notification instance + settings check
-                const notificationKey = `${item.id}-${item.date}-${timeSlot.time}-${projectSettings.notificationMinutes}`;
-                const targetMinutes = projectSettings.notificationMinutes;
-
-                // Check window: e.g. if target is 30, trigger between 29 and 30.5 to catch it in the 1-min interval
-                if (diffMinutes >= (targetMinutes - 1) && diffMinutes <= (targetMinutes + 0.5) && !notifiedIds.current.has(notificationKey)) {
-                     
-                     // Format message using template
-                     const formatString = (str: string) => {
-                         return str
-                            .replace('{topic}', item.topic)
-                            .replace('{platform}', item.platform)
-                            .replace('{time}', timeSlot.time);
-                     };
-
-                     new Notification(formatString(projectSettings.notificationTitleTemplate || 'Напоминание'), {
-                        body: formatString(projectSettings.notificationBodyTemplate || 'Пора публиковать пост'),
-                        icon: '/vite.svg' 
-                     });
-                     notifiedIds.current.add(notificationKey);
-                }
-            });
-        }
-    };
-
-    const intervalId = setInterval(checkNotifications, 60000); // Check every minute
-    checkNotifications(); // Check immediately on load
-
-    return () => clearInterval(intervalId);
-
-  }, [allItems, postingTimes, projectSettings]);
-
-  const handleAddItem = useCallback(async (item: Omit<ContentItem, 'id'>) => {
-    if (!user || !project) return;
-    try {
-      await addDoc(collection(db, "users", user.uid, "projects", project.id, "content"), item);
-    } catch (e) {
-      console.error("Error adding document: ", e);
-      alert("Ошибка при сохранении поста!");
-    }
-  }, [user, project]);
-
-  const handleUpdateItemStatus = useCallback(async (itemId: string, status: Status) => {
-    if (!user || !project) return;
-    try {
-      const itemRef = doc(db, "users", user.uid, "projects", project.id, "content", itemId);
-      await updateDoc(itemRef, { status });
-    } catch (e) {
-      console.error("Error updating document: ", e);
-      alert("Ошибка при обновлении статуса!");
-    }
-  }, [user, project]);
-
-  const handleUpdateItemDate = useCallback(async (itemId: string, date: string) => {
-    if (!user || !project) return;
-    try {
-      const itemRef = doc(db, "users", user.uid, "projects", project.id, "content", itemId);
-      await updateDoc(itemRef, { date });
-    } catch (e) {
-      console.error("Error updating document: ", e);
-      alert("Ошибка при обновлении даты!");
-    }
-  }, [user, project]);
-
-  const handleDeleteItem = useCallback(async (itemId: string) => {
-    if (!user || !project) return;
-    try {
-      await deleteDoc(doc(db, "users", user.uid, "projects", project.id, "content", itemId));
-    } catch (e) {
-      console.error("Error deleting document: ", e);
-      alert("Ошибка при удалении поста!");
-    }
-  }, [user, project]);
-
-  const filteredItems = useMemo(() => {
-    return allItems.filter(item => {
-      const platformMatch = filters.platform === 'all' || item.platform === filters.platform;
-      const statusMatch = filters.status === 'all' || item.status === filters.status;
-      return platformMatch && statusMatch;
-    });
-  }, [allItems, filters]);
-
-  return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 font-sans">
-      <div className="container mx-auto p-4 md:p-8">
-        {/* Header */}
-        <header className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-            <div className="text-center sm:text-left">
-                 <div className="flex items-center gap-3">
-                    <button onClick={onBackToProjects} className="p-2 rounded-full hover:bg-gray-800 transition-colors" aria-label="Back to projects">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </button>
-                    <h1 className="text-4xl font-bold text-red-500 tracking-wider" title={project.name}>{project.name}</h1>
-                </div>
-                <p className="text-gray-400 mt-1 pl-10">Путь контента - путь воина</p>
-            </div>
-            <div className="flex items-center space-x-2">
-                 <span className="text-gray-400 text-sm mr-2 hidden md:block" title={user.email || 'user'}>{user.email}</span>
-                <button onClick={onSignOut} title="Выйти" className="p-2.5 bg-gray-800 border border-gray-700 hover:bg-gray-700 rounded-lg font-semibold transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                </button>
-            </div>
-        </header>
-
-        {/* Navigation Tabs */}
-        <div className="flex space-x-4 border-b border-gray-700 mb-6 overflow-x-auto">
-            <button 
-                onClick={() => setActiveTab('content')} 
-                className={`py-2 px-4 font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'content' ? 'border-red-600 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
-            >
-                Контент
-            </button>
-            <button 
-                onClick={() => setActiveTab('rubrics')} 
-                className={`py-2 px-4 font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'rubrics' ? 'border-red-600 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
-            >
-                Рубрики
-            </button>
-             <button 
-                onClick={() => setActiveTab('times')} 
-                className={`py-2 px-4 font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'times' ? 'border-red-600 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
-            >
-                Время публикаций
-            </button>
-             <button 
-                onClick={() => setActiveTab('stats')} 
-                className={`py-2 px-4 font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'stats' ? 'border-red-600 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
-            >
-                Статистика
-            </button>
-        </div>
-
-        {/* Content Area */}
-        <main>
-            {activeTab === 'content' && (
-                <>
-                    <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                        <div className="flex bg-gray-800 border border-gray-700 rounded-lg p-1">
-                            <button onClick={() => setView('list')} className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${view === 'list' ? 'bg-red-600' : 'hover:bg-gray-700'}`}>Список</button>
-                            <button onClick={() => setView('calendar')} className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${view === 'calendar' ? 'bg-red-600' : 'hover:bg-gray-700'}`}>Календарь</button>
-                            <button onClick={() => setView('kanban')} className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${view === 'kanban' ? 'bg-red-600' : 'hover:bg-gray-700'}`}>Доска</button>
-                        </div>
-                        <button onClick={() => setIsModalOpen(true)} className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition-colors shadow-md w-full md:w-auto">
-                            Новый Пост
-                        </button>
-                    </div>
-
-                    {/* Filter Bar */}
-                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-8 flex flex-col sm:flex-row items-center gap-4">
-                        <div className="flex-1 w-full sm:w-auto">
-                            <label htmlFor="platform-filter" className="text-sm font-medium text-gray-400 mr-2">Платформа:</label>
-                            <select id="platform-filter" value={filters.platform} onChange={e => setFilters(f => ({...f, platform: e.target.value}))} className="w-full sm:w-auto bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500">
-                                <option value="all">Все</option>
-                                {Object.values(Platform).map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                        </div>
-                        <div className="flex-1 w-full sm:w-auto">
-                            <label htmlFor="status-filter" className="text-sm font-medium text-gray-400 mr-2">Статус:</label>
-                            <select id="status-filter" value={filters.status} onChange={e => setFilters(f => ({...f, status: e.target.value}))} className="w-full sm:w-auto bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500">
-                                <option value="all">Все</option>
-                                {Object.values(Status).map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                        </div>
-                        <button onClick={() => setFilters({platform: 'all', status: 'all'})} className="w-full sm:w-auto px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg font-semibold transition-colors">Сбросить</button>
-                    </div>
-
-                    {view === 'list' ? (
-                        <ContentTable items={filteredItems} rubrics={rubrics} postingTimes={postingTimes} onUpdateStatus={handleUpdateItemStatus} onUpdateDate={handleUpdateItemDate} onDeleteItem={handleDeleteItem} />
-                    ) : view === 'calendar' ? (
-                        <CalendarView items={filteredItems} rubrics={rubrics} postingTimes={postingTimes} currentDate={currentDate} setCurrentDate={setCurrentDate} />
-                    ) : (
-                        <KanbanView items={filteredItems} rubrics={rubrics} postingTimes={postingTimes} onUpdateStatus={handleUpdateItemStatus} onUpdateDate={handleUpdateItemDate} onDeleteItem={handleDeleteItem} />
-                    )}
-                </>
-            )}
-
-            {activeTab === 'rubrics' && <RubricsManager user={user} project={project} />}
-            {activeTab === 'times' && <PostingTimesManager user={user} project={project} />}
-            {activeTab === 'stats' && <Statistics user={user} project={project} contentItems={allItems} />}
-        </main>
-      </div>
-
-      <ContentModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSave={handleAddItem}
-        rubrics={rubrics}
-        postingTimes={postingTimes}
-       />
-    </div>
-  );
-}
-
-
-// -- VIEW COMPONENTS --
 
 const StatusActions: React.FC<{
   item: ContentItem;
@@ -833,40 +359,51 @@ const KanbanView: React.FC<{
                  const timeSlot = postingTimes.find(t => t.id === item.postingTimeId);
 
                  return (
-                    <div key={item.id} className="bg-gray-800 border border-gray-700 p-3 rounded shadow-sm hover:shadow-md hover:border-gray-500 transition-all group">
-                    <div className="flex justify-between items-start mb-2">
-                         <div className="flex gap-2 items-center">
-                            {rubric && (
-                                <div className={`w-2.5 h-2.5 rounded-full shadow-sm ${rubricColor}`} title={rubric.name}></div>
-                            )}
-                            <div className="text-xs text-gray-400 font-mono">{new Date(item.date).toLocaleDateString('ru-RU')}</div>
-                         </div>
-                         <PlatformIcon platform={item.platform} className="w-4 h-4 text-gray-500" />
-                    </div>
-                    
-                    <h4 className="text-sm font-semibold text-gray-200 mb-2 leading-snug">{item.topic}</h4>
-                    
-                    {timeSlot && (
-                        <div className="flex items-center gap-1 text-xs text-gray-500 mb-3">
-                             <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                            </svg>
-                            {timeSlot.time}
+                    <div key={item.id} className="bg-gray-800 border border-gray-700 p-3 rounded shadow-sm hover:shadow-md hover:border-gray-500 transition-all group relative">
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <StatusActions 
+                                item={item}
+                                onUpdateStatus={onUpdateStatus}
+                                onUpdateDate={onUpdateDate}
+                                onDelete={onDeleteItem}
+                            />
                         </div>
-                    )}
+                        <div className="flex justify-between items-start mb-2 pr-8">
+                            <div className="flex gap-2 items-center">
+                                {rubric && (
+                                    <div className={`w-2.5 h-2.5 rounded-full shadow-sm ${rubricColor}`} title={rubric.name}></div>
+                                )}
+                                <div className="text-xs text-gray-400 font-mono">{new Date(item.date).toLocaleDateString('ru-RU')}</div>
+                            </div>
+                            <PlatformIcon platform={item.platform} className="w-4 h-4 text-gray-500" />
+                        </div>
+                        
+                        <h4 className="text-sm font-semibold text-gray-200 mb-2 leading-snug pr-6">{item.topic}</h4>
+                        
+                        {timeSlot && (
+                            <div className="flex items-center gap-1 text-xs text-gray-500 mb-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                                </svg>
+                                {timeSlot.time}
+                            </div>
+                        )}
 
-                    <div className="flex justify-between items-center pt-2 border-t border-gray-700/50 mt-2">
-                        {item.link ? (
-                            <a href={item.link} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:text-blue-300">Ссылка</a>
-                        ) : <span></span>}
-                        <StatusActions item={item} onUpdateStatus={onUpdateStatus} onUpdateDate={onUpdateDate} onDelete={onDeleteItem} />
-                    </div>
+                        <div className="flex justify-between items-center pt-2 border-t border-gray-700/50 mt-2">
+                            {item.link ? (
+                                <a href={item.link} target="_blank" rel="noreferrer" className="text-red-400 text-xs hover:text-red-300 hover:underline flex items-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                    Открыть
+                                </a>
+                            ) : (
+                                <span className="text-gray-600 text-xs">Нет ссылки</span>
+                            )}
+                        </div>
                     </div>
                  );
               })}
-              {statusItems.length === 0 && (
-                  <div className="text-center text-xs text-gray-600 py-4 italic">Пусто</div>
-              )}
             </div>
           </div>
         );
@@ -874,3 +411,391 @@ const KanbanView: React.FC<{
     </div>
   );
 };
+
+
+// -- MAIN DASHBOARD COMPONENT --
+
+const ContentDashboard: React.FC<{ user: User; project: Project; onBack: () => void }> = ({ user, project, onBack }) => {
+    const [activeTab, setActiveTab] = useState<Tab>('content');
+    const [view, setView] = useState<View>('list');
+    const [items, setItems] = useState<ContentItem[]>([]);
+    const [rubrics, setRubrics] = useState<Rubric[]>([]);
+    const [postingTimes, setPostingTimes] = useState<PostingTime[]>([]);
+    const [filterPlatform, setFilterPlatform] = useState<Platform | 'All'>('All');
+    const [filterStatus, setFilterStatus] = useState<Status | 'All'>('All');
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [currentDate, setCurrentDate] = useState(new Date());
+
+    // Form State
+    const [topic, setTopic] = useState('');
+    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [platform, setPlatform] = useState<Platform>(Platform.Instagram);
+    const [link, setLink] = useState('');
+    const [selectedRubricId, setSelectedRubricId] = useState('');
+    const [selectedTimeId, setSelectedTimeId] = useState('');
+
+    // Settings for notifications
+    const [notificationSettings, setNotificationSettings] = useState<ProjectSettings | null>(null);
+
+
+    // Fetch Content, Rubrics, Times, Settings
+    useEffect(() => {
+        const contentQuery = query(collection(db, "users", user.uid, "projects", project.id, "content"), orderBy("date"));
+        const rubricsQuery = query(collection(db, "users", user.uid, "projects", project.id, "rubrics"));
+        const timesQuery = query(collection(db, "users", user.uid, "projects", project.id, "postingTimes"));
+        const settingsRef = doc(db, "users", user.uid, "projects", project.id, "settings", "notifications");
+
+        const unsubContent = onSnapshot(contentQuery, (snapshot) => {
+             const data: ContentItem[] = [];
+             snapshot.forEach(doc => data.push({id: doc.id, ...doc.data()} as ContentItem));
+             setItems(data);
+        });
+
+        const unsubRubrics = onSnapshot(rubricsQuery, (snapshot) => {
+             const data: Rubric[] = [];
+             snapshot.forEach(doc => data.push({id: doc.id, ...doc.data()} as Rubric));
+             setRubrics(data);
+        });
+
+        const unsubTimes = onSnapshot(timesQuery, (snapshot) => {
+             const data: PostingTime[] = [];
+             snapshot.forEach(doc => data.push({id: doc.id, ...doc.data()} as PostingTime));
+             setPostingTimes(data);
+        });
+        
+        // Fetch Settings once
+        getDoc(settingsRef).then(docSnap => {
+            if (docSnap.exists()) {
+                setNotificationSettings(docSnap.data() as ProjectSettings);
+            }
+        });
+
+        return () => {
+            unsubContent();
+            unsubRubrics();
+            unsubTimes();
+        };
+    }, [user, project]);
+
+    // Notification Logic
+    useEffect(() => {
+        if (Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        const checkNotifications = () => {
+            if (Notification.permission !== 'granted') return;
+
+            const now = new Date();
+            const minutesBefore = notificationSettings?.notificationMinutes || 30; // Use setting or default 30
+            
+            items.forEach(item => {
+                if (item.status === Status.Published || !item.postingTimeId) return;
+
+                const timeSlot = postingTimes.find(t => t.id === item.postingTimeId);
+                if (!timeSlot) return;
+
+                const [hours, minutes] = timeSlot.time.split(':').map(Number);
+                const postDate = new Date(item.date);
+                postDate.setHours(hours, minutes, 0, 0);
+
+                const diffMs = postDate.getTime() - now.getTime();
+                const diffMinutes = diffMs / (1000 * 60);
+
+                // Notify if within a 1-minute window of the target notification time
+                if (diffMinutes >= (minutesBefore - 1) && diffMinutes <= minutesBefore) {
+                     const titleTemplate = notificationSettings?.notificationTitleTemplate || 'Напоминание: {topic}';
+                     const bodyTemplate = notificationSettings?.notificationBodyTemplate || 'Публикация в {time}';
+
+                     const title = titleTemplate
+                        .replace('{topic}', item.topic)
+                        .replace('{platform}', item.platform)
+                        .replace('{time}', timeSlot.time);
+                     
+                     const body = bodyTemplate
+                        .replace('{topic}', item.topic)
+                        .replace('{platform}', item.platform)
+                        .replace('{time}', timeSlot.time);
+
+                     new Notification(title, { body, icon: '/vite.svg' });
+                }
+            });
+        };
+
+        const interval = setInterval(checkNotifications, 60000); // Check every minute
+        return () => clearInterval(interval);
+    }, [items, postingTimes, notificationSettings]);
+
+
+    const filteredItems = useMemo(() => {
+        return items.filter(item => {
+            const matchesPlatform = filterPlatform === 'All' || item.platform === filterPlatform;
+            const matchesStatus = filterStatus === 'All' || item.status === filterStatus;
+            return matchesPlatform && matchesStatus;
+        });
+    }, [items, filterPlatform, filterStatus]);
+
+    const handleAddItem = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+             await addDoc(collection(db, "users", user.uid, "projects", project.id, "content"), {
+                topic,
+                date,
+                platform,
+                status: Status.Idea,
+                link,
+                rubricId: selectedRubricId || null,
+                postingTimeId: selectedTimeId || null
+            });
+            setIsModalOpen(false);
+            setTopic('');
+            setLink('');
+        } catch (error) {
+            console.error("Error adding item: ", error);
+        }
+    };
+
+    const handleUpdateStatus = useCallback(async (id: string, status: Status) => {
+        await updateDoc(doc(db, "users", user.uid, "projects", project.id, "content", id), { status });
+    }, [user, project]);
+
+    const handleUpdateDate = useCallback(async (id: string, date: string) => {
+        await updateDoc(doc(db, "users", user.uid, "projects", project.id, "content", id), { date });
+    }, [user, project]);
+
+    const handleDeleteItem = useCallback(async (id: string) => {
+        await deleteDoc(doc(db, "users", user.uid, "projects", project.id, "content", id));
+    }, [user, project]);
+
+
+    return (
+        <div className="min-h-screen bg-gray-900 text-gray-100 font-sans pb-10">
+            {/* Header */}
+            <header className="bg-gray-800 border-b border-gray-700 sticky top-0 z-30 shadow-md">
+                <div className="container mx-auto px-4 py-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-700 transition-colors text-gray-400 hover:text-white">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                </svg>
+                            </button>
+                            <div>
+                                <h1 className="text-xl font-bold text-gray-100">{project.name}</h1>
+                                <p className="text-xs text-gray-500">Панель управления</p>
+                            </div>
+                        </div>
+                        
+                        {/* Tab Navigation */}
+                        <div className="flex bg-gray-900 rounded-lg p-1 overflow-x-auto">
+                            <button onClick={() => setActiveTab('content')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'content' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-gray-200'}`}>Контент</button>
+                            <button onClick={() => setActiveTab('rubrics')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'rubrics' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-gray-200'}`}>Рубрики</button>
+                            <button onClick={() => setActiveTab('times')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'times' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-gray-200'}`}>Время</button>
+                            <button onClick={() => setActiveTab('stats')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'stats' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-gray-200'}`}>Статистика</button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main className="container mx-auto px-4 py-8">
+                {activeTab === 'content' && (
+                    <div className="space-y-6 animate-fade-in">
+                        {/* Filters and Controls */}
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-800 p-4 rounded-lg border border-gray-700">
+                             <div className="flex flex-wrap items-center gap-2 md:gap-4">
+                                <select 
+                                    className="bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-red-500 focus:border-red-500"
+                                    value={filterPlatform}
+                                    onChange={(e) => setFilterPlatform(e.target.value as Platform | 'All')}
+                                >
+                                    <option value="All">Все платформы</option>
+                                    {Object.values(Platform).map(p => <option key={p} value={p}>{p}</option>)}
+                                </select>
+                                <select 
+                                    className="bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-sm focus:ring-red-500 focus:border-red-500"
+                                    value={filterStatus}
+                                    onChange={(e) => setFilterStatus(e.target.value as Status | 'All')}
+                                >
+                                    <option value="All">Все статусы</option>
+                                    {Object.values(Status).map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
+
+                            <div className="flex items-center gap-2 bg-gray-900 p-1 rounded-lg">
+                                <button onClick={() => setView('list')} className={`p-2 rounded-md transition-all ${view === 'list' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-gray-200'}`} title="Список">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                                </button>
+                                <button onClick={() => setView('kanban')} className={`p-2 rounded-md transition-all ${view === 'kanban' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-gray-200'}`} title="Доска">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>
+                                </button>
+                                <button onClick={() => setView('calendar')} className={`p-2 rounded-md transition-all ${view === 'calendar' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-gray-200'}`} title="Календарь">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                </button>
+                            </div>
+
+                             <button 
+                                onClick={() => setIsModalOpen(true)}
+                                className="w-full md:w-auto px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-semibold shadow-lg hover:shadow-red-900/50 transition-all transform hover:scale-105"
+                            >
+                                + Создать
+                            </button>
+                        </div>
+
+                        {/* Views */}
+                        {view === 'list' && (
+                            <ContentTable 
+                                items={filteredItems} 
+                                rubrics={rubrics} 
+                                postingTimes={postingTimes}
+                                onUpdateStatus={handleUpdateStatus} 
+                                onUpdateDate={handleUpdateDate}
+                                onDeleteItem={handleDeleteItem} 
+                            />
+                        )}
+                        {view === 'calendar' && (
+                            <CalendarView 
+                                items={filteredItems} 
+                                rubrics={rubrics} 
+                                postingTimes={postingTimes}
+                                currentDate={currentDate} 
+                                setCurrentDate={setCurrentDate} 
+                            />
+                        )}
+                        {view === 'kanban' && (
+                            <KanbanView 
+                                items={filteredItems} 
+                                rubrics={rubrics} 
+                                postingTimes={postingTimes}
+                                onUpdateStatus={handleUpdateStatus}
+                                onUpdateDate={handleUpdateDate}
+                                onDeleteItem={handleDeleteItem} 
+                            />
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'rubrics' && <RubricsManager user={user} project={project} />}
+                {activeTab === 'times' && <PostingTimesManager user={user} project={project} />}
+                {activeTab === 'stats' && <Statistics user={user} project={project} contentItems={items} />}
+            </main>
+
+            {/* Add Content Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setIsModalOpen(false)}>
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-2xl p-6 w-full max-w-lg" onClick={e => e.stopPropagation()}>
+                        <h2 className="text-2xl font-bold text-gray-100 mb-6">Новая публикация</h2>
+                        <form onSubmit={handleAddItem} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Тема</label>
+                                <input type="text" value={topic} onChange={e => setTopic(e.target.value)} required className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500" placeholder="О чем пост?" />
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">Дата</label>
+                                    <input type="date" value={date} onChange={e => setDate(e.target.value)} required className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">Время</label>
+                                    <select 
+                                        value={selectedTimeId} 
+                                        onChange={e => setSelectedTimeId(e.target.value)}
+                                        className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500"
+                                    >
+                                        <option value="">-- Без времени --</option>
+                                        {postingTimes.map(t => (
+                                            <option key={t.id} value={t.id}>{t.time} {t.label ? `(${t.label})` : ''}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                 <div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">Платформа</label>
+                                    <select value={platform} onChange={e => setPlatform(e.target.value as Platform)} className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500">
+                                        {Object.values(Platform).map(p => <option key={p} value={p}>{p}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">Рубрика</label>
+                                     <select 
+                                        value={selectedRubricId} 
+                                        onChange={e => setSelectedRubricId(e.target.value)}
+                                        className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500"
+                                    >
+                                        <option value="">-- Без рубрики --</option>
+                                        {rubrics.map(r => (
+                                            <option key={r.id} value={r.id}>{r.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-400 mb-1">Ссылка (необязательно)</label>
+                                <input type="url" value={link} onChange={e => setLink(e.target.value)} className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500" placeholder="https://..." />
+                            </div>
+                            <div className="flex justify-end gap-3 pt-4">
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-md bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors">Отмена</button>
+                                <button type="submit" className="px-4 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">Создать</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// -- APP COMPONENT --
+
+export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [showLanding, setShowLanding] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+          setShowLanding(false);
+      }
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    await signOut(auth);
+    setCurrentProject(null);
+    setShowLanding(true);
+  };
+
+  const handleGetStarted = () => {
+      setShowLanding(false);
+  };
+
+  const handleBackToLanding = () => {
+      setShowLanding(true);
+  };
+
+  if (loading) {
+    return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-red-500">Загрузка додзё...</div>;
+  }
+
+  if (showLanding && !user) {
+      return <LandingPage onGetStarted={handleGetStarted} />;
+  }
+
+  if (!user) {
+    return <Auth auth={auth} onBackToLanding={handleBackToLanding} />;
+  }
+
+  if (currentProject) {
+      return <ContentDashboard user={user} project={currentProject} onBack={() => setCurrentProject(null)} />;
+  }
+
+  return <ProjectList user={user} onSelectProject={setCurrentProject} onSignOut={handleSignOut} />;
+}

@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
 
@@ -15,6 +15,12 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+
+// Initialize Firestore with settings to ignore undefined properties
+// This prevents errors when optional fields (like rubricId) are passed as undefined
+export const db = initializeFirestore(app, {
+    ignoreUndefinedProperties: true
+});
+
 export const auth = getAuth(app);
 export const analytics = getAnalytics(app);

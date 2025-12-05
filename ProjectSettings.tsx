@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, setDoc, getDoc } from 'firebase/firestore';
 import { User } from 'firebase/auth';
@@ -107,8 +106,8 @@ export const RubricsManager: React.FC<SettingsProps> = ({ user, project }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {rubrics.map(rubric => {
-                    // Visual fix for legacy 600 colors to show as 500
-                    const displayColor = rubric.color.replace('600', '500');
+                    // Visual fix for legacy 600 colors to show as 500, with safety check
+                    const displayColor = rubric.color ? rubric.color.replace('600', '500') : 'bg-gray-500';
                     return (
                         <div key={rubric.id} className="flex justify-between items-center p-3 bg-gray-900 border border-gray-700 rounded-lg hover:border-gray-500 transition-colors">
                             <div className="flex items-center gap-3">
