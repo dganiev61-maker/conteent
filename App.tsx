@@ -667,6 +667,10 @@ const ContentTable: React.FC<{
           items.map((item) => {
             const rubric = rubrics.find(r => r.id === item.rubricId);
             const timeSlot = postingTimes.find(t => t.id === item.postingTimeId);
+            
+            // Brighten color for display if legacy data
+            const rubricColor = rubric ? rubric.color.replace('600', '500') : '';
+
             return (
                 <tr key={item.id} className="hover:bg-gray-700/30 transition-colors duration-150">
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -684,8 +688,7 @@ const ContentTable: React.FC<{
                 </td>
                  <td className="px-6 py-4 whitespace-nowrap">
                     {rubric ? (
-                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-700 text-gray-200 border border-gray-600`}>
-                             <span className={`w-2 h-2 rounded-full mr-1.5 ${rubric.color}`}></span>
+                         <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold text-white shadow-sm ${rubricColor}`}>
                              {rubric.name}
                          </span>
                     ) : (
@@ -826,6 +829,7 @@ const KanbanView: React.FC<{
             <div className="p-3 space-y-3 flex-1 overflow-y-auto max-h-[calc(100vh-250px)] scrollbar-thin scrollbar-thumb-gray-600">
               {statusItems.map(item => {
                  const rubric = rubrics.find(r => r.id === item.rubricId);
+                 const rubricColor = rubric ? rubric.color.replace('600', '500') : '';
                  const timeSlot = postingTimes.find(t => t.id === item.postingTimeId);
 
                  return (
@@ -833,7 +837,7 @@ const KanbanView: React.FC<{
                     <div className="flex justify-between items-start mb-2">
                          <div className="flex gap-2 items-center">
                             {rubric && (
-                                <div className={`w-2 h-2 rounded-full ${rubric.color}`} title={rubric.name}></div>
+                                <div className={`w-2.5 h-2.5 rounded-full shadow-sm ${rubricColor}`} title={rubric.name}></div>
                             )}
                             <div className="text-xs text-gray-400 font-mono">{new Date(item.date).toLocaleDateString('ru-RU')}</div>
                          </div>

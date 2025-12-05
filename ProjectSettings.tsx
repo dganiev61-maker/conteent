@@ -5,26 +5,26 @@ import { User } from 'firebase/auth';
 import { db } from './firebase';
 import { Project, Rubric, PostingTime, ProjectSettings } from './types';
 
-// Predefined colors for the Samurai theme context
+// Predefined colors for the Samurai theme context - Updated to 500 for brightness
 const RUBRIC_COLORS = [
-    'bg-red-600',
-    'bg-orange-600',
-    'bg-amber-600',
-    'bg-yellow-600',
-    'bg-lime-600',
-    'bg-green-600',
-    'bg-emerald-600',
-    'bg-teal-600',
-    'bg-cyan-600',
-    'bg-sky-600',
-    'bg-blue-600',
-    'bg-indigo-600',
-    'bg-violet-600',
-    'bg-purple-600',
-    'bg-fuchsia-600',
-    'bg-pink-600',
-    'bg-rose-600',
-    'bg-gray-600'
+    'bg-red-500',
+    'bg-orange-500',
+    'bg-amber-500',
+    'bg-yellow-500',
+    'bg-lime-500',
+    'bg-green-500',
+    'bg-emerald-500',
+    'bg-teal-500',
+    'bg-cyan-500',
+    'bg-sky-500',
+    'bg-blue-500',
+    'bg-indigo-500',
+    'bg-violet-500',
+    'bg-purple-500',
+    'bg-fuchsia-500',
+    'bg-pink-500',
+    'bg-rose-500',
+    'bg-gray-500'
 ];
 
 interface SettingsProps {
@@ -106,19 +106,23 @@ export const RubricsManager: React.FC<SettingsProps> = ({ user, project }) => {
             </form>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {rubrics.map(rubric => (
-                    <div key={rubric.id} className="flex justify-between items-center p-3 bg-gray-900 border border-gray-700 rounded-lg hover:border-gray-500 transition-colors">
-                        <div className="flex items-center gap-3">
-                            <div className={`w-4 h-4 rounded-full ${rubric.color}`}></div>
-                            <span className="font-medium text-gray-200">{rubric.name}</span>
+                {rubrics.map(rubric => {
+                    // Visual fix for legacy 600 colors to show as 500
+                    const displayColor = rubric.color.replace('600', '500');
+                    return (
+                        <div key={rubric.id} className="flex justify-between items-center p-3 bg-gray-900 border border-gray-700 rounded-lg hover:border-gray-500 transition-colors">
+                            <div className="flex items-center gap-3">
+                                <div className={`w-4 h-4 rounded-full ${displayColor}`}></div>
+                                <span className="font-medium text-gray-200">{rubric.name}</span>
+                            </div>
+                            <button onClick={() => handleDelete(rubric.id)} className="text-gray-500 hover:text-red-500 transition-colors p-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                            </button>
                         </div>
-                        <button onClick={() => handleDelete(rubric.id)} className="text-gray-500 hover:text-red-500 transition-colors p-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                        </button>
-                    </div>
-                ))}
+                    );
+                })}
                 {rubrics.length === 0 && (
                     <div className="col-span-full text-center text-gray-500 py-8">
                         Рубрики еще не созданы.
