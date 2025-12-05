@@ -6,13 +6,13 @@ import { db, auth } from './firebase';
 import { Auth } from './Auth';
 import LandingPage from './LandingPage';
 import { ProjectList } from './ProjectList';
-import { RubricsManager, PostingTimesManager, NotificationSettingsManager } from './ProjectSettings';
+import { RubricsManager, PostingTimesManager } from './ProjectSettings';
 import { Statistics } from './Statistics';
 import { ContentItem, Platform, Status, Project, Rubric, PostingTime, ProjectSettings } from './types';
 import { STATUS_COLORS } from './constants';
 
 type View = 'list' | 'calendar' | 'kanban';
-type Tab = 'content' | 'rubrics' | 'times' | 'settings' | 'stats';
+type Tab = 'content' | 'rubrics' | 'times' | 'stats';
 
 // -- HELPER COMPONENTS --
 
@@ -453,12 +453,6 @@ const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBa
             >
                 Статистика
             </button>
-            <button 
-                onClick={() => setActiveTab('settings')} 
-                className={`py-2 px-4 font-semibold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'settings' ? 'border-red-600 text-red-500' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
-            >
-                Настройки
-            </button>
         </div>
 
         {/* Content Area */}
@@ -508,7 +502,6 @@ const ContentDashboard: React.FC<ContentDashboardProps> = ({ user, project, onBa
             {activeTab === 'rubrics' && <RubricsManager user={user} project={project} />}
             {activeTab === 'times' && <PostingTimesManager user={user} project={project} />}
             {activeTab === 'stats' && <Statistics user={user} project={project} contentItems={allItems} />}
-            {activeTab === 'settings' && <NotificationSettingsManager user={user} project={project} />}
         </main>
       </div>
 

@@ -129,103 +129,8 @@ export const RubricsManager: React.FC<SettingsProps> = ({ user, project }) => {
     );
 };
 
-export const PostingTimesManager: React.FC<SettingsProps> = ({ user, project }) => {
-    const [times, setTimes] = useState<PostingTime[]>([]);
-    const [timeVal, setTimeVal] = useState('');
-    const [label, setLabel] = useState('');
-
-    useEffect(() => {
-        const q = query(collection(db, "users", user.uid, "projects", project.id, "postingTimes"), orderBy("time"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data: PostingTime[] = [];
-            snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as PostingTime));
-            setTimes(data);
-        });
-        return () => unsubscribe();
-    }, [user, project]);
-
-    const handleAdd = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!timeVal) return;
-        try {
-            await addDoc(collection(db, "users", user.uid, "projects", project.id, "postingTimes"), {
-                time: timeVal,
-                label: label
-            });
-            setTimeVal('');
-            setLabel('');
-        } catch (error) {
-            console.error("Error adding time:", error);
-        }
-    };
-
-    const handleDelete = async (id: string) => {
-        await deleteDoc(doc(db, "users", user.uid, "projects", project.id, "postingTimes", id));
-    };
-
-    return (
-        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6 max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold text-gray-100 mb-6 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Время публикаций
-            </h2>
-
-            <form onSubmit={handleAdd} className="bg-gray-800 p-4 rounded-lg mb-8 border border-gray-700">
-                <div className="flex flex-col md:flex-row gap-4 items-end">
-                    <div className="w-full md:w-1/3">
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Время</label>
-                        <input 
-                            type="time" 
-                            value={timeVal} 
-                            onChange={(e) => setTimeVal(e.target.value)} 
-                            className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500 [color-scheme:dark]"
-                            required
-                        />
-                    </div>
-                    <div className="w-full md:w-1/3">
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Метка (опционально)</label>
-                        <input 
-                            type="text" 
-                            value={label} 
-                            onChange={(e) => setLabel(e.target.value)} 
-                            placeholder="Утро, Прайм-тайм..."
-                            className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500"
-                        />
-                    </div>
-                    <button type="submit" className="w-full md:w-1/3 px-6 py-2 bg-red-600 hover:bg-red-700 rounded-md font-semibold transition-colors">
-                        Добавить
-                    </button>
-                </div>
-            </form>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {times.map(t => (
-                    <div key={t.id} className="bg-gray-900 border border-gray-700 rounded-lg p-3 text-center relative group hover:border-red-500/50 transition-colors">
-                        <div className="text-xl font-bold text-gray-100">{t.time}</div>
-                        {t.label && <div className="text-xs text-gray-400 mt-1">{t.label}</div>}
-                        <button 
-                            onClick={() => handleDelete(t.id)}
-                            className="absolute -top-2 -right-2 bg-gray-700 text-gray-300 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 hover:text-white"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                        </button>
-                    </div>
-                ))}
-                 {times.length === 0 && (
-                    <div className="col-span-full text-center text-gray-500 py-8">
-                        Слоты времени не заданы.
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
-
-export const NotificationSettingsManager: React.FC<SettingsProps> = ({ user, project }) => {
+// Internal component for notification settings, not exported
+const NotificationSettingsManager: React.FC<SettingsProps> = ({ user, project }) => {
     const [minutes, setMinutes] = useState(30);
     const [titleTemplate, setTitleTemplate] = useState('Напоминание: {topic}');
     const [bodyTemplate, setBodyTemplate] = useState('Публикация через {time} в {platform}');
@@ -254,6 +159,7 @@ export const NotificationSettingsManager: React.FC<SettingsProps> = ({ user, pro
                 notificationTitleTemplate: titleTemplate,
                 notificationBodyTemplate: bodyTemplate
             }, { merge: true });
+            alert("Настройки уведомлений сохранены!");
         } catch (error) {
             console.error("Error saving settings:", error);
             alert("Не удалось сохранить настройки");
@@ -263,13 +169,13 @@ export const NotificationSettingsManager: React.FC<SettingsProps> = ({ user, pro
     };
 
     return (
-        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6 max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold text-gray-100 mb-6 flex items-center gap-2">
-                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="bg-gray-800/30 border border-gray-700 rounded-lg p-6">
+            <h3 className="text-xl font-bold text-gray-100 mb-4 flex items-center gap-2">
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
-                Настройки Уведомлений
-            </h2>
+                Параметры Уведомлений
+            </h3>
 
             <form onSubmit={handleSave} className="space-y-6">
                 <div>
@@ -345,10 +251,111 @@ export const NotificationSettingsManager: React.FC<SettingsProps> = ({ user, pro
                         disabled={saving}
                         className="px-6 py-2 bg-red-600 hover:bg-red-700 rounded-md font-semibold transition-colors disabled:opacity-50"
                     >
-                        {saving ? 'Сохранение...' : 'Сохранить настройки'}
+                        {saving ? 'Сохранение...' : 'Сохранить параметры'}
                     </button>
                 </div>
             </form>
+        </div>
+    );
+};
+
+export const PostingTimesManager: React.FC<SettingsProps> = ({ user, project }) => {
+    const [times, setTimes] = useState<PostingTime[]>([]);
+    const [timeVal, setTimeVal] = useState('');
+    const [label, setLabel] = useState('');
+
+    useEffect(() => {
+        const q = query(collection(db, "users", user.uid, "projects", project.id, "postingTimes"), orderBy("time"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data: PostingTime[] = [];
+            snapshot.forEach((doc) => data.push({ id: doc.id, ...doc.data() } as PostingTime));
+            setTimes(data);
+        });
+        return () => unsubscribe();
+    }, [user, project]);
+
+    const handleAdd = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!timeVal) return;
+        try {
+            await addDoc(collection(db, "users", user.uid, "projects", project.id, "postingTimes"), {
+                time: timeVal,
+                label: label
+            });
+            setTimeVal('');
+            setLabel('');
+        } catch (error) {
+            console.error("Error adding time:", error);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        await deleteDoc(doc(db, "users", user.uid, "projects", project.id, "postingTimes", id));
+    };
+
+    return (
+        <div className="max-w-4xl mx-auto space-y-8">
+            <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-6">
+                <h2 className="text-2xl font-bold text-gray-100 mb-6 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Управление временем
+                </h2>
+
+                <form onSubmit={handleAdd} className="bg-gray-800 p-4 rounded-lg mb-8 border border-gray-700">
+                    <div className="flex flex-col md:flex-row gap-4 items-end">
+                        <div className="w-full md:w-1/3">
+                            <label className="block text-sm font-medium text-gray-400 mb-1">Время</label>
+                            <input 
+                                type="time" 
+                                value={timeVal} 
+                                onChange={(e) => setTimeVal(e.target.value)} 
+                                className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500 [color-scheme:dark]"
+                                required
+                            />
+                        </div>
+                        <div className="w-full md:w-1/3">
+                            <label className="block text-sm font-medium text-gray-400 mb-1">Метка (опционально)</label>
+                            <input 
+                                type="text" 
+                                value={label} 
+                                onChange={(e) => setLabel(e.target.value)} 
+                                placeholder="Утро, Прайм-тайм..."
+                                className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500"
+                            />
+                        </div>
+                        <button type="submit" className="w-full md:w-1/3 px-6 py-2 bg-red-600 hover:bg-red-700 rounded-md font-semibold transition-colors">
+                            Добавить слот
+                        </button>
+                    </div>
+                </form>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {times.map(t => (
+                        <div key={t.id} className="bg-gray-900 border border-gray-700 rounded-lg p-3 text-center relative group hover:border-red-500/50 transition-colors">
+                            <div className="text-xl font-bold text-gray-100">{t.time}</div>
+                            {t.label && <div className="text-xs text-gray-400 mt-1">{t.label}</div>}
+                            <button 
+                                onClick={() => handleDelete(t.id)}
+                                className="absolute -top-2 -right-2 bg-gray-700 text-gray-300 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 hover:text-white"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                        </div>
+                    ))}
+                     {times.length === 0 && (
+                        <div className="col-span-full text-center text-gray-500 py-8">
+                            Слоты времени не заданы.
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Notification Settings Embedded Here */}
+            <NotificationSettingsManager user={user} project={project} />
         </div>
     );
 };
