@@ -13,6 +13,17 @@ import { STATUS_COLORS } from './constants';
 type View = 'list' | 'calendar' | 'kanban';
 type Tab = 'content' | 'rubrics' | 'times' | 'stats';
 
+// -- HELPER FUNCTIONS --
+
+// Avoids timezone issues by splitting the string directly
+const formatDate = (dateStr: string): string => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const [year, month, day] = parts;
+    return `${day}.${month}.${year}`;
+};
+
 // -- HELPER COMPONENTS --
 
 const PlatformIcon: React.FC<{ platform: Platform; className?: string }> = ({ platform, className = 'w-6 h-6' }) => {
@@ -103,7 +114,7 @@ const StatusActions: React.FC<{
                         type="date" 
                         value={newDate} 
                         onChange={(e) => setNewDate(e.target.value)}
-                        className="w-full bg-gray-800 border border-gray-600 rounded-md px-2 py-1.5 text-sm mb-3 focus:ring-red-500 focus:border-red-500"
+                        className="w-full bg-gray-800 border border-gray-600 rounded-md px-2 py-1.5 text-sm mb-3 focus:ring-red-500 focus:border-red-500 [color-scheme:dark]"
                      />
                      <div className="flex justify-between gap-2">
                          <button 
@@ -201,7 +212,7 @@ const ContentTable: React.FC<{
                 <tr key={item.id} className="hover:bg-gray-700/30 transition-colors duration-150">
                 <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-200">
-                        {new Date(item.date).toLocaleDateString('ru-RU')}
+                        {formatDate(item.date)}
                     </div>
                     {timeSlot && (
                          <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
@@ -373,7 +384,9 @@ const KanbanView: React.FC<{
                                 {rubric && (
                                     <div className={`w-2.5 h-2.5 rounded-full shadow-sm ${rubricColor}`} title={rubric.name}></div>
                                 )}
-                                <div className="text-xs text-gray-400 font-mono">{new Date(item.date).toLocaleDateString('ru-RU')}</div>
+                                <div className="text-xs text-gray-400 font-mono">
+                                    {formatDate(item.date)}
+                                </div>
                             </div>
                             <PlatformIcon platform={item.platform} className="w-4 h-4 text-gray-500" />
                         </div>
@@ -693,7 +706,7 @@ const ContentDashboard: React.FC<{ user: User; project: Project; onBack: () => v
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-400 mb-1">Дата</label>
-                                    <input type="date" value={date} onChange={e => setDate(e.target.value)} required className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500" />
+                                    <input type="date" value={date} onChange={e => setDate(e.target.value)} required className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 focus:ring-red-500 focus:border-red-500 [color-scheme:dark]" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-400 mb-1">Время</label>
