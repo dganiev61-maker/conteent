@@ -24,20 +24,6 @@ const formatDate = (dateStr: string): string => {
     return `${day}.${month}.${year}`;
 };
 
-const getNextStatus = (current: Status): Status => {
-    const flow = [Status.Idea, Status.InProgress, Status.Ready, Status.Published];
-    const idx = flow.indexOf(current);
-    if (idx === -1) return Status.Idea;
-    return flow[(idx + 1) % flow.length];
-};
-
-const getPrevStatus = (current: Status): Status => {
-    const flow = [Status.Idea, Status.InProgress, Status.Ready, Status.Published];
-    const idx = flow.indexOf(current);
-    if (idx === -1) return Status.Idea;
-    return flow[(idx - 1 + flow.length) % flow.length];
-};
-
 // -- HELPER COMPONENTS --
 
 const PlatformIcon: React.FC<{ platform: Platform; className?: string }> = ({ platform, className = 'w-6 h-6' }) => {
@@ -59,7 +45,7 @@ const PlatformIcon: React.FC<{ platform: Platform; className?: string }> = ({ pl
     ),
     [Platform.VK]: (
       <svg className={className} fill="currentColor" viewBox="0 0 24 24">
-        <path d="M13.162 18.994c.609 0 .858-.403.858-.403s.184-2.42.742-2.822c.558-.401 1.055.22 2.13.824c.954.52 1.762.348 1.762.348s.947-.123.51-.945c-.066-.132-.38-1.04-.812-1.841c-.42-.78-.347-.655.488-2.11c1.32-2.32 1.84-3.55 1.63-4.185c-.208-.624-1.345-.48-1.345-.48s.592.062 1.012.333c-.42.27-.723.87-.723.87s-.404 1.132-.786 1.853c-1.12 2.11-1.61 2.3-1.85 2.14c-.63-.42-.49-1.68-.49-2.58s.25-2.84-.44-3.13c-.27-.11-1.46-.14-2.84.44c-.45.18-1.18.7-1.55 1.03c-.35.3-.47.53-.47.53s-.22.3-.02.64c.2.33.6.43.74.25c.23-.28 1.06-1.1 1.06-1.1s.4-.4.57-.2c.17.2-.1.54-.1.54s-1.8 2.2-2.9 2.1c-1.03-.08-1.14-.72-1.14-.72s-.08-.5.35-.74c.42-.24.5-.23.18-.72c-.32-.5-.9-.55-1.17-.58c-.3-.03-1.2-.05-2.1.58c-.5.34-1.1 1.1-1.1 2.3s.9 2.2 1.5 2.2c.7 0 .6-.7.6-.7s.2-1.2 1-1.4c.8-.2 1.4.3 1.4 1.3c0 1.2-1.8 1.1-1.8 1.1s-1.7 0-2.8.9c-.9.7-1.4 2.3-1.4 2.3s-1.1 2.5 1.5 2.9c2.5.4 5.3-2.1 6.1-3.2Z"/>
+        <path d="M13.162 18.994c.609 0 .858-.403.858-.403s.184-2.42.742-2.822c.558-.401 1.055.22 2.13.824c.954.52 1.762.348 1.762.348s.947-.123.51-.945c-.066-.132-.38-1.04-.812-1.841c-.42-.78-.347-.655.488-2.11c1.32-2.32 1.84-3.55 1.63-4.185c-.208-.624-1.345-.48-1.345-.48s-.592.062-1.012.333c-.42.27-.723.87-.723.87s-.404 1.132-.786 1.853c-1.12 2.11-1.61 2.3-1.85 2.14c-.63-.42-.49-1.68-.49-2.58s.25-2.84-.44-3.13c-.27-.11-1.46-.14-2.84.44c-.45.18-1.18.7-1.55 1.03c-.35.3-.47.53-.47.53s-.22.3-.02.64c.2.33.6.43.74.25c.23-.28 1.06-1.1 1.06-1.1s.4-.4.57-.2c.17.2-.1.54-.1.54s-1.8 2.2-2.9 2.1c-1.03-.08-1.14-.72-1.14-.72s-.08-.5.35-.74c.42-.24.5-.23.18-.72c-.32-.5-.9-.55-1.17-.58c-.3-.03-1.2-.05-2.1.58c-.5.34-1.1 1.1-1.1 2.3s.9 2.2 1.5 2.2c.7 0 .6-.7.6-.7s.2-1.2 1-1.4c.8-.2 1.4.3 1.4 1.3c0 1.2-1.8 1.1-1.8 1.1s-1.7 0-2.8.9c-.9.7-1.4 2.3-1.4 2.3s-1.1 2.5 1.5 2.9c2.5.4 5.3-2.1 6.1-3.2Z"/>
       </svg>
     ),
      [Platform.TikTok]: (
@@ -185,72 +171,6 @@ const StatusActions: React.FC<{
   );
 };
 
-// Swipeable Row Component
-const SwipeableTableRow: React.FC<{
-    children: React.ReactNode;
-    onSwipeLeft?: () => void;
-    onSwipeRight?: () => void;
-    className?: string;
-}> = ({ children, onSwipeLeft, onSwipeRight, className }) => {
-    const [touchStart, setTouchStart] = useState<number | null>(null);
-    const [touchEnd, setTouchEnd] = useState<number | null>(null);
-    const [offset, setOffset] = useState(0);
-
-    const minSwipeDistance = 75;
-
-    const onTouchStart = (e: React.TouchEvent) => {
-        setTouchEnd(null);
-        setTouchStart(e.targetTouches[0].clientX);
-    };
-
-    const onTouchMove = (e: React.TouchEvent) => {
-        setTouchEnd(e.targetTouches[0].clientX);
-        if (touchStart !== null) {
-             const currentOffset = e.targetTouches[0].clientX - touchStart;
-             // Limit offset for visual feedback
-             if (Math.abs(currentOffset) < 150) {
-                 setOffset(currentOffset);
-             }
-        }
-    };
-
-    const onTouchEnd = () => {
-        if (!touchStart || !touchEnd) return;
-        
-        const distance = touchStart - touchEnd;
-        const isLeftSwipe = distance > minSwipeDistance;
-        const isRightSwipe = distance < -minSwipeDistance;
-
-        if (isLeftSwipe && onSwipeLeft) {
-            onSwipeLeft();
-        } else if (isRightSwipe && onSwipeRight) {
-            onSwipeRight();
-        }
-
-        // Reset
-        setTouchStart(null);
-        setTouchEnd(null);
-        setOffset(0);
-    };
-
-    const style = {
-        transform: `translateX(${offset}px)`,
-        transition: touchStart ? 'none' : 'transform 0.3s ease-out'
-    };
-
-    return (
-        <tr 
-            className={`${className} touch-pan-y relative`}
-            onTouchStart={onTouchStart} 
-            onTouchMove={onTouchMove} 
-            onTouchEnd={onTouchEnd}
-            style={style}
-        >
-            {children}
-        </tr>
-    );
-};
-
 
 const ContentTable: React.FC<{ 
     items: ContentItem[];
@@ -260,104 +180,94 @@ const ContentTable: React.FC<{
     onUpdateDate: (id: string, date: string) => void;
     onDeleteItem: (id: string) => void;
 }> = ({ items, rubrics, postingTimes, onUpdateStatus, onUpdateDate, onDeleteItem }) => (
-  <div className="overflow-x-hidden bg-gray-800 border border-gray-700 rounded-lg shadow-xl">
-    <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-        <thead className="bg-gray-900 text-gray-500 uppercase text-xs">
-            <tr>
-            <th className="px-6 py-4 border-b border-gray-700 font-semibold tracking-wider">Дата/Время</th>
-            <th className="px-6 py-4 border-b border-gray-700 font-semibold tracking-wider">Рубрика</th>
-            <th className="px-6 py-4 border-b border-gray-700 font-semibold tracking-wider">Платформа</th>
-            <th className="px-6 py-4 border-b border-gray-700 font-semibold tracking-wider">Тема</th>
-            <th className="px-6 py-4 border-b border-gray-700 font-semibold tracking-wider">Статус</th>
-            <th className="px-6 py-4 border-b border-gray-700 font-semibold tracking-wider">Ссылка</th>
-            <th className="px-6 py-4 border-b border-gray-700 font-semibold tracking-wider text-right">Действия</th>
-            </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-700">
-            {items.length === 0 ? (
-            <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                Пока нет постов. Самое время создать первый!
-                </td>
-            </tr>
-            ) : (
-            items.map((item) => {
-                const rubric = rubrics.find(r => r.id === item.rubricId);
-                const timeSlot = postingTimes.find(t => t.id === item.postingTimeId);
-                
-                // Brighten color for display if legacy data
-                const rubricColor = rubric ? rubric.color.replace('600', '500') : '';
+  <div className="overflow-x-auto bg-gray-800 border border-gray-700 rounded-lg shadow-xl">
+    <table className="w-full text-left border-collapse">
+      <thead className="bg-gray-900 text-gray-500 uppercase text-xs">
+        <tr>
+          <th className="px-6 py-4 border-b border-gray-700 font-semibold tracking-wider">Дата/Время</th>
+           <th className="px-6 py-4 border-b border-gray-700 font-semibold tracking-wider">Рубрика</th>
+          <th className="px-6 py-4 border-b border-gray-700 font-semibold tracking-wider">Платформа</th>
+          <th className="px-6 py-4 border-b border-gray-700 font-semibold tracking-wider">Тема</th>
+          <th className="px-6 py-4 border-b border-gray-700 font-semibold tracking-wider">Статус</th>
+          <th className="px-6 py-4 border-b border-gray-700 font-semibold tracking-wider">Ссылка</th>
+          <th className="px-6 py-4 border-b border-gray-700 font-semibold tracking-wider text-right">Действия</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-gray-700">
+        {items.length === 0 ? (
+          <tr>
+            <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+              Пока нет постов. Самое время создать первый!
+            </td>
+          </tr>
+        ) : (
+          items.map((item) => {
+            const rubric = rubrics.find(r => r.id === item.rubricId);
+            const timeSlot = postingTimes.find(t => t.id === item.postingTimeId);
+            
+            // Brighten color for display if legacy data
+            const rubricColor = rubric ? rubric.color.replace('600', '500') : '';
 
-                return (
-                    <SwipeableTableRow 
-                        key={item.id} 
-                        className="hover:bg-gray-700/30 transition-colors duration-150"
-                        onSwipeRight={() => onUpdateStatus(item.id, getNextStatus(item.status))}
-                        onSwipeLeft={() => onUpdateStatus(item.id, getPrevStatus(item.status))}
-                    >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-200">
-                            {formatDate(item.date)}
-                        </div>
-                        {timeSlot && (
-                            <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                                </svg>
-                                {timeSlot.time}
-                            </div>
-                        )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                        {rubric ? (
-                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold text-white shadow-sm ${rubricColor}`}>
-                                {rubric.name}
-                            </span>
-                        ) : (
-                            <span className="text-gray-600 text-xs">-</span>
-                        )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-400">
-                        <div className="flex items-center gap-2">
-                            <PlatformIcon platform={item.platform} />
-                            <span className="text-sm">{item.platform}</span>
-                        </div>
-                    </td>
-                    <td className="px-6 py-4 font-medium text-gray-200">{item.topic}</td>
-                    <td className="px-6 py-4 whitespace-nowrap select-none">
-                        <StatusBadge status={item.status} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                        {item.link ? (
-                        <a href={item.link} target="_blank" rel="noreferrer" className="text-red-400 hover:text-red-300 hover:underline flex items-center text-sm">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            return (
+                <tr key={item.id} className="hover:bg-gray-700/30 transition-colors duration-150">
+                <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-200">
+                        {formatDate(item.date)}
+                    </div>
+                    {timeSlot && (
+                         <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
                             </svg>
-                            Открыть
-                        </a>
-                        ) : (
-                        <span className="text-gray-600 text-sm">-</span>
-                        )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                        <StatusActions 
-                            item={item} 
-                            onUpdateStatus={onUpdateStatus} 
-                            onUpdateDate={onUpdateDate}
-                            onDelete={onDeleteItem} 
-                        />
-                    </td>
-                    </SwipeableTableRow>
-                );
-            })
-            )}
-        </tbody>
-        </table>
-    </div>
-    <div className="px-6 py-3 bg-gray-900 text-xs text-gray-500 text-center md:hidden">
-        Смахните влево/вправо по строке, чтобы изменить статус
-    </div>
+                            {timeSlot.time}
+                        </div>
+                    )}
+                </td>
+                 <td className="px-6 py-4 whitespace-nowrap">
+                    {rubric ? (
+                         <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold text-white shadow-sm ${rubricColor}`}>
+                             {rubric.name}
+                         </span>
+                    ) : (
+                        <span className="text-gray-600 text-xs">-</span>
+                    )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-gray-400">
+                    <div className="flex items-center gap-2">
+                         <PlatformIcon platform={item.platform} />
+                         <span className="text-sm">{item.platform}</span>
+                    </div>
+                </td>
+                <td className="px-6 py-4 font-medium text-gray-200">{item.topic}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                    <StatusBadge status={item.status} />
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                    {item.link ? (
+                    <a href={item.link} target="_blank" rel="noreferrer" className="text-red-400 hover:text-red-300 hover:underline flex items-center text-sm">
+                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        Открыть
+                    </a>
+                    ) : (
+                    <span className="text-gray-600 text-sm">-</span>
+                    )}
+                </td>
+                <td className="px-6 py-4 text-right">
+                    <StatusActions 
+                        item={item} 
+                        onUpdateStatus={onUpdateStatus} 
+                        onUpdateDate={onUpdateDate}
+                        onDelete={onDeleteItem} 
+                    />
+                </td>
+                </tr>
+            );
+          })
+        )}
+      </tbody>
+    </table>
   </div>
 );
 
