@@ -1,4 +1,3 @@
-
 export enum Platform {
   Instagram = 'Instagram',
   Telegram = 'Telegram',
@@ -47,12 +46,6 @@ export interface PostingTime {
     id: string;
     time: string; // HH:MM format
     label?: string; // e.g. "Morning", "Prime Time"
-}
-
-export interface ProjectSettings {
-    notificationMinutes: number;
-    notificationTitleTemplate: string;
-    notificationBodyTemplate: string;
 }
 
 export interface StatsRecord {

@@ -1,5 +1,4 @@
-
-import { Language, Status } from './types';
+import { Status } from './types';
 
 export const translations = {
   ru: {
@@ -81,13 +80,27 @@ export const translations = {
         addSlot: 'Добавить слот',
         label: 'Метка',
     },
-    notifications: {
-        title: 'Параметры Уведомлений',
-        minutesBefore: 'За сколько минут отправлять уведомление?',
-        headerTemplate: 'Шаблон заголовка',
-        bodyTemplate: 'Шаблон текста',
-        preview: 'Предпросмотр',
-        saveSettings: 'Сохранить параметры',
+    recentChanges: {
+      title: 'Последние изменения',
+      subtitle: 'Кодекс обновляется. Наше оружие становится острее.',
+      updates: [
+        {
+          title: 'Мультиязычность',
+          desc: 'Теперь приложение говорит на русском, английском и узбекском языках.'
+        },
+        {
+          title: 'Управление рубриками',
+          desc: 'Создавайте свои рубрики и назначайте им цвета для лучшей визуализации контента.'
+        },
+        {
+          title: 'График публикаций',
+          desc: 'Добавлены слоты времени для точного планирования постов в течение дня.'
+        },
+        {
+          title: 'Канбан и Календарь',
+          desc: 'Новые режимы просмотра для эффективного управления потоком идей.'
+        }
+      ]
     }
   },
   en: {
@@ -169,13 +182,27 @@ export const translations = {
         addSlot: 'Add Slot',
         label: 'Label',
     },
-    notifications: {
-        title: 'Notification Settings',
-        minutesBefore: 'How many minutes before to notify?',
-        headerTemplate: 'Header Template',
-        bodyTemplate: 'Body Template',
-        preview: 'Preview',
-        saveSettings: 'Save Settings',
+    recentChanges: {
+      title: 'Recent Changes',
+      subtitle: 'The code is updated. Our weapons are getting sharper.',
+      updates: [
+        {
+          title: 'Multi-language Support',
+          desc: 'The app now speaks Russian, English, and Uzbek.'
+        },
+        {
+          title: 'Rubrics Management',
+          desc: 'Create your own categories and assign colors for better content visualization.'
+        },
+        {
+          title: 'Posting Schedule',
+          desc: 'Added time slots for precise post planning throughout the day.'
+        },
+        {
+          title: 'Kanban & Calendar',
+          desc: 'New view modes for effective idea flow management.'
+        }
+      ]
     }
   },
   uz: {
@@ -257,13 +284,27 @@ export const translations = {
         addSlot: 'Slot qo\'shish',
         label: 'Yorliq',
     },
-    notifications: {
-        title: 'Bildirishnoma sozlamalari',
-        minutesBefore: 'Necha daqiqa oldin xabar berish kerak?',
-        headerTemplate: 'Sarlavha shabloni',
-        bodyTemplate: 'Matn shabloni',
-        preview: 'Ko\'rinish',
-        saveSettings: 'Sozlamalarni saqlash',
+    recentChanges: {
+      title: 'Oxirgi o\'zgarishlar',
+      subtitle: 'Kodeks yangilanmoqda. Qurollarimiz o\'tkirlashmoqda.',
+      updates: [
+        {
+          title: 'Ko\'p tillilik',
+          desc: 'Endi ilova rus, ingliz va o\'zbek tillarida so\'zlashadi.'
+        },
+        {
+          title: 'Rubrikalarni boshqarish',
+          desc: 'O\'z rubrikalaringizni yarating va kontentni yaxshiroq vizuallashtirish uchun ranglar tayinlang.'
+        },
+        {
+          title: 'Nashrlar jadvali',
+          desc: 'Kun davomida postlarni aniq rejalashtirish uchun vaqt slotlari qo\'shildi.'
+        },
+        {
+          title: 'Kanban va Taqvim',
+          desc: 'G\'oyalar oqimini samarali boshqarish uchun yangi ko\'rinish rejimlari.'
+        }
+      ]
     }
   }
 };

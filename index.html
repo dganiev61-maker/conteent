@@ -22,6 +22,36 @@
       ::-webkit-scrollbar-thumb:hover {
         background: #b91c1c; /* red-700 */
       }
+
+      @keyframes status-fade-in {
+        from {
+          opacity: 0.4;
+          transform: translateY(2px) scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      @keyframes row-status-flash {
+        0% { background-color: transparent; }
+        20% { background-color: rgba(220, 38, 38, 0.1); }
+        100% { background-color: transparent; }
+      }
+
+      .animate-status-fade {
+        animation: status-fade-in 0.4s ease-out forwards;
+      }
+
+      .animate-status-flash {
+        animation: row-status-flash 0.8s ease-out forwards;
+      }
+
+      /* Smooth transition for badge colors */
+      .status-badge-transition {
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
     </style>
   <script type="importmap">
 {
@@ -33,7 +63,8 @@
     "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
     "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
     "firebase/analytics": "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.33.0"
   }
 }
 </script>
