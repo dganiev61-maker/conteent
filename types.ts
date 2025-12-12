@@ -14,6 +14,8 @@ export enum Status {
   Published = 'Опубликовано',
 }
 
+export type Language = 'ru' | 'en' | 'uz';
+
 export interface ContentItem {
   id: string;
   date: string; // ISO string format 'YYYY-MM-DD'
